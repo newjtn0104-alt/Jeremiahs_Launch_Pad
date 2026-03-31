@@ -103,10 +103,10 @@ async function fetchSchedule(companyId: string, date: string) {
     }
     
     // Get unique user IDs
-    const userIds = [...new Set(shiftsData.data.map((s: Shift) => s.user_id))];
+    const userIds = Array.from(new Set(shiftsData.data.map((s: Shift) => s.user_id)));
     
     // Fetch all user names in parallel
-    const userNamePromises = userIds.map(id => getUserName(id, companyId));
+    const userNamePromises = (userIds as number[]).map(id => getUserName(id, companyId));
     const userNames = await Promise.all(userNamePromises);
     
     // Build user cache
