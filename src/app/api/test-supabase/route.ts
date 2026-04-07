@@ -1,42 +1,15 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
 
 export async function GET() {
-  try {
-    // Test Supabase connection
-    const { data, error } = await supabase
-      .from("inventory_submissions")
-      .select("count");
-    
-    if (error) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: error.message,
-          hint: "Check if Supabase URL and Anon Key are set correctly in Vercel"
-        },
-        { status: 500 }
-      );
-    }
-    
-    return NextResponse.json({
-      success: true,
-      message: "Supabase connected successfully",
-      count: data?.[0]?.count || 0,
-      env: {
-        url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "Set" : "Not set",
-        key: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? "Set" : "Not set",
-      }
-    });
-    
-  } catch (error) {
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error instanceof Error ? error.message : String(error)
-      },
-      { status: 500 }
-    );
-  }
+  // Check environment variables
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  return NextResponse.json({
+    envStatus: {
+      url: supabaseUrl ? `Set: ${supabaseUrl.substring(0, 20)}...` : "NOT SET",
+      key: supabaseKey ? `Set: ${supabaseKey.substring(0, 20)}...` : "NOT SET",
+    },
+    allEnvKeys: Object.keys(process.env).filter(k => k.includes('SUPABASE') || k.includes('NEXT')),
+  });
 }
-// Deploy: Tue Apr  7 01:20:59 EDT 2026
