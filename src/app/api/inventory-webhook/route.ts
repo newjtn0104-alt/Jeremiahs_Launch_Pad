@@ -1,50 +1,39 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
-interface TallyField {
-  key: string;
-  label: string;
-  type: string;
-  value: string | number | null;
-}
-
-interface TallyWebhookPayload {
-  eventId: string;
-  eventType: string;
-  createdAt: string;
-  data: {
-    responseId: string;
-    submissionId: string;
-    respondentId: string;
-    formId: string;
-    formName: string;
-    createdAt: string;
-    fields: TallyField[];
-  };
-}
-
 export async function POST(request: NextRequest) {
   try {
-    const payload: TallyWebhookPayload = await request.json();
+    const payload = await request.json();
+    
+    console.log("Webhook received:", JSON.stringify(payload, null, 2));
     
     // Extract fields from Tally webhook
-    const { fields } = payload.data;
+    const fields = payload.data?.fields || [];
+    
+    console.log(`Processing ${fields.length} fields`);
     
     // Process each field and store in Supabase
     const storedItems = [];
     
     for (const field of fields) {
-      // Skip non-number fields or empty values
-      if (field.type !== "NUMBER" || field.value === null || field.value === undefined || field.value === "") {
+      console.log(`Field: ${field.label}, Type: ${field.type}, Value: ${field.value}`);
+      
+      // Skip empty values
+      if (field.value === null || field.value === undefined || field.value === "") {
+        console.log(`Skipping ${field.label} - empty value`);
         continue;
       }
       
+      // Try to parse as number
       const count = parseFloat(String(field.value));
       
-      // Skip if count is 0 or invalid
+      // Skip if not a valid number or is 0
       if (isNaN(count) || count === 0) {
+        console.log(`Skipping ${field.label} - invalid or zero count: ${count}`);
         continue;
       }
+      
+      console.log(`Storing ${field.label}: ${count}`);
       
       // Store in Supabase
       const { data, error } = await supabase
@@ -65,9 +54,10 @@ export async function POST(request: NextRequest) {
       }
       
       storedItems.push(data);
+      console.log(`Stored successfully: ${data.id}`);
     }
     
-    console.log(`Stored ${storedItems.length} inventory items from submission ${payload.data.submissionId}`);
+    console.log(`Total stored: ${storedItems.length} items`);
     
     return NextResponse.json(
       { 
