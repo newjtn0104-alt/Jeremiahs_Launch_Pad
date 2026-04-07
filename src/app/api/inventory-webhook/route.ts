@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { addSubmission } from "@/lib/inventory-store";
 
 interface TallyField {
   key: string;
@@ -30,8 +30,8 @@ export async function POST(request: NextRequest) {
     // Extract fields from Tally webhook
     const { fields } = payload.data;
     
-    // Process each field and store in database
-    const submissions = [];
+    // Process each field and store
+    const storedItems = [];
     
     for (const field of fields) {
       // Skip non-number fields or empty values
@@ -46,27 +46,25 @@ export async function POST(request: NextRequest) {
         continue;
       }
       
-      // Store in database
-      const submission = await prisma.inventorySubmission.create({
-        data: {
-          itemName: field.label,
-          count: count,
-          submissionId: payload.data.submissionId,
-          formId: payload.data.formId,
-          respondedAt: new Date(payload.data.createdAt),
-        },
+      // Store in memory
+      const submission = addSubmission({
+        itemName: field.label,
+        count: count,
+        submissionId: payload.data.submissionId,
+        formId: payload.data.formId,
+        respondedAt: new Date(payload.data.createdAt),
       });
       
-      submissions.push(submission);
+      storedItems.push(submission);
     }
     
-    console.log(`Stored ${submissions.length} inventory items from submission ${payload.data.submissionId}`);
+    console.log(`Stored ${storedItems.length} inventory items from submission ${payload.data.submissionId}`);
     
     return NextResponse.json(
       { 
         success: true, 
-        message: `Stored ${submissions.length} items`,
-        submissions 
+        message: `Stored ${storedItems.length} items`,
+        items: storedItems 
       }, 
       { status: 200 }
     );

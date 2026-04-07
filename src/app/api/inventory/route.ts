@@ -1,30 +1,24 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { getSubmissions } from "@/lib/inventory-store";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "100");
     const dateFrom = searchParams.get("from");
     const dateTo = searchParams.get("to");
     
-    // Build where clause
-    const where: any = {};
+    // Fetch all submissions
+    let submissions = getSubmissions();
     
+    // Filter by date if provided
     if (dateFrom || dateTo) {
-      where.createdAt = {};
-      if (dateFrom) where.createdAt.gte = new Date(dateFrom);
-      if (dateTo) where.createdAt.lte = new Date(dateTo);
+      submissions = submissions.filter(sub => {
+        const subDate = new Date(sub.createdAt);
+        if (dateFrom && subDate < new Date(dateFrom)) return false;
+        if (dateTo && subDate > new Date(dateTo)) return false;
+        return true;
+      });
     }
-    
-    // Fetch submissions grouped by submissionId
-    const submissions = await prisma.inventorySubmission.findMany({
-      where,
-      orderBy: {
-        createdAt: "desc",
-      },
-      take: limit,
-    });
     
     // Group by submissionId
     const groupedSubmissions = submissions.reduce((acc, item) => {
