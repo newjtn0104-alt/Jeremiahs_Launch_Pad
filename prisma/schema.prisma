@@ -1,0 +1,25 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model InventorySubmission {
+  id            String   @id @default(uuid())
+  itemName      String
+  count         Float
+  submissionId  String   // Tally submission ID for grouping
+  formId        String   // Tally form ID
+  respondedAt   DateTime // When the form was submitted
+  createdAt     DateTime @default(now())
+  
+  @@index([submissionId])
+  @@index([itemName])
+  @@index([createdAt])
+}
