@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Home, 
@@ -17,7 +16,9 @@ import {
   GraduationCap,
   Package,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  Menu,
+  X
 } from "lucide-react";
 import WhosWorking from "./WhosWorking";
 import TastyTargets from "./TastyTargets";
@@ -40,6 +41,7 @@ export default function LaunchPadMenu() {
   const [activeLaunchPadItem, setActiveLaunchPadItem] = useState<LaunchPadSubItem>("sweet-start");
   const [activeLearningItem, setActiveLearningItem] = useState<LearningSubItem>("icm-learning");
   const [expandedMenu, setExpandedMenu] = useState<MenuItem | null>("launchpad");
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const mainMenuItems = [
     { id: "home" as MenuItem, label: "Home", icon: Home },
@@ -115,7 +117,7 @@ export default function LaunchPadMenu() {
 
   const handleMenuClick = (itemId: MenuItem) => {
     setActiveItem(itemId);
-    // Toggle expanded state for items with submenus
+    setMobileMenuOpen(false);
     if (itemId === "launchpad" || itemId === "learning") {
       if (expandedMenu === itemId) {
         setExpandedMenu(null);
@@ -123,107 +125,138 @@ export default function LaunchPadMenu() {
         setExpandedMenu(itemId);
       }
     } else {
-      // For other items, collapse the menu
       setExpandedMenu(null);
     }
   };
 
+  const renderMenuItems = () => (
+    <>
+      {mainMenuItems.map((item, index) => {
+        const Icon = item.icon;
+        const isActive = activeItem === item.id;
+        const isExpanded = expandedMenu === item.id;
+        const hasSubItems = item.subItems && item.subItems.length > 0;
+        
+        return (
+          <div key={item.id}>
+            <button
+              onClick={() => handleMenuClick(item.id)}
+              className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+                isActive 
+                  ? "bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600" 
+                  : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+              } ${index !== 0 ? "border-t border-slate-100" : ""}`}
+            >
+              <div className="flex items-center gap-3">
+                <Icon className={`w-5 h-5 ${isActive ? "text-blue-600" : ""}`} />
+                <span>{item.label}</span>
+              </div>
+              {hasSubItems && (
+                isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+              )}
+            </button>
+            
+            {hasSubItems && isExpanded && (
+              <div className="bg-slate-50 border-t border-slate-100">
+                {item.id === "launchpad" && item.subItems?.map((subItem) => {
+                  const SubIcon = subItem.icon;
+                  const isSubActive = activeLaunchPadItem === subItem.id && activeItem === "launchpad";
+                  
+                  return (
+                    <button
+                      key={subItem.id}
+                      onClick={() => {
+                        setActiveItem(item.id);
+                        setActiveLaunchPadItem(subItem.id as LaunchPadSubItem);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
+                        isSubActive
+                          ? "bg-blue-100 text-blue-700 font-medium"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : ""}`} />
+                      <span>{subItem.label}</span>
+                    </button>
+                  );
+                })}
+                {item.id === "learning" && item.subItems?.map((subItem) => {
+                  const SubIcon = subItem.icon;
+                  const isSubActive = activeLearningItem === subItem.id && activeItem === "learning";
+                  
+                  return (
+                    <button
+                      key={subItem.id}
+                      onClick={() => {
+                        setActiveItem(item.id);
+                        setActiveLearningItem(subItem.id as LearningSubItem);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
+                        isSubActive
+                          ? "bg-blue-100 text-blue-700 font-medium"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : ""}`} />
+                      <span>{subItem.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-slate-50">
-      {/* Header with Logo */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
+      {/* Header with Logo and Mobile Menu Button */}
+      <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3 h-16">
-            <div className="p-2 rounded-xl bg-blue-600">
-              <Rocket className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-blue-600">
+                <Rocket className="w-6 h-6 text-white" />
+              </div>
+              <span className="text-xl font-bold text-slate-900">Jeremiah&apos;s LaunchPad</span>
             </div>
-            <span className="text-xl font-bold text-slate-900">Jeremiah&apos;s LaunchPad</span>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="lg:hidden"
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            >
+              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </Button>
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex gap-6">
-          {/* Left Sidebar Navigation */}
-          <nav className="w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-              {mainMenuItems.map((item, index) => {
-                const Icon = item.icon;
-                const isActive = activeItem === item.id;
-                const isExpanded = expandedMenu === item.id;
-                const hasSubItems = item.subItems && item.subItems.length > 0;
-                
-                return (
-                  <div key={item.id}>
-                    <button
-                      onClick={() => handleMenuClick(item.id)}
-                      className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
-                        isActive 
-                          ? "bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600" 
-                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                      } ${index !== 0 ? "border-t border-slate-100" : ""}`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className={`w-5 h-5 ${isActive ? "text-blue-600" : ""}`} />
-                        <span>{item.label}</span>
-                      </div>
-                      {hasSubItems && (
-                        isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
-                      )}
-                    </button>
-                    
-                    {/* Sub-menu */}
-                    {hasSubItems && isExpanded && (
-                      <div className="bg-slate-50 border-t border-slate-100">
-                        {item.id === "launchpad" && item.subItems?.map((subItem) => {
-                          const SubIcon = subItem.icon;
-                          const isSubActive = activeLaunchPadItem === subItem.id && activeItem === "launchpad";
-                          
-                          return (
-                            <button
-                              key={subItem.id}
-                              onClick={() => {
-                                setActiveItem(item.id);
-                                setActiveLaunchPadItem(subItem.id as LaunchPadSubItem);
-                              }}
-                              className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
-                                isSubActive
-                                  ? "bg-blue-100 text-blue-700 font-medium"
-                                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                              }`}
-                            >
-                              <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : ""}`} />
-                              <span>{subItem.label}</span>
-                            </button>
-                          );
-                        })}
-                        {item.id === "learning" && item.subItems?.map((subItem) => {
-                          const SubIcon = subItem.icon;
-                          const isSubActive = activeLearningItem === subItem.id && activeItem === "learning";
-                          
-                          return (
-                            <button
-                              key={subItem.id}
-                              onClick={() => {
-                                setActiveItem(item.id);
-                                setActiveLearningItem(subItem.id as LearningSubItem);
-                              }}
-                              className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
-                                isSubActive
-                                  ? "bg-blue-100 text-blue-700 font-medium"
-                                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
-                              }`}
-                            >
-                              <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : ""}`} />
-                              <span>{subItem.label}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Mobile Menu Overlay */}
+          {mobileMenuOpen && (
+            <div className="lg:hidden fixed inset-0 z-40 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}>
+              <nav 
+                className="absolute left-0 top-0 h-full w-64 bg-white shadow-xl overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="p-4 border-b border-slate-200">
+                  <span className="font-semibold text-slate-700">Menu</span>
+                </div>
+                {renderMenuItems()}
+              </nav>
+            </div>
+          )}
+
+          {/* Desktop Sidebar Navigation */}
+          <nav className="hidden lg:block w-64 flex-shrink-0">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden sticky top-24">
+              {renderMenuItems()}
             </div>
           </nav>
 
