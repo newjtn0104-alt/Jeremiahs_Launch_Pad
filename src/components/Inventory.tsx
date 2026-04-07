@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, RefreshCw, Calendar } from "lucide-react";
+import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -26,6 +26,7 @@ export default function Inventory() {
   const [error, setError] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
 
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -56,8 +57,27 @@ export default function Inventory() {
     fetchSubmissions();
   }, []);
 
+  const toggleSubmission = (submissionId: string) => {
+    setExpandedSubmissions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(submissionId)) {
+        newSet.delete(submissionId);
+      } else {
+        newSet.add(submissionId);
+      }
+      return newSet;
+    });
+  };
+
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString();
+    return new Date(dateString).toLocaleString('en-US', {
+      weekday: 'short',
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   return (
@@ -139,46 +159,64 @@ export default function Inventory() {
               <p className="text-slate-500">
                 Share your Tally form URL with employees. Submissions will appear here automatically.
               </p>
-              <div className="mt-4 text-sm text-slate-400 bg-slate-50 p-4 rounded-lg text-left font-mono">
-                <p className="mb-2">Webhook URL:</p>
-                <p className="text-blue-600">/api/inventory-webhook</p>
-              </div>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {submissions.map((submission) => (
-        <Card key={submission.submissionId} className="border-slate-200 shadow-md bg-white">
-          <CardHeader className="bg-slate-50 border-b border-slate-200">
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="text-lg font-semibold text-slate-800">
-                  Submission {submission.submissionId.slice(0, 8)}
-                </CardTitle>
-                <p className="text-sm text-slate-500">
-                  {formatDate(submission.respondedAt)}
-                </p>
-              </div>
-              <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                {submission.items.length} items
-              </span>
-            </div>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100">
-              {submission.items.map((item) => (
-                <div key={item.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50">
-                  <span className="text-slate-700">{item.itemName}</span>
-                  <span className="font-semibold text-slate-900 bg-slate-100 px-3 py-1 rounded">
-                    {item.count}
-                  </span>
+      {submissions.map((submission) => {
+        const isExpanded = expandedSubmissions.has(submission.submissionId);
+        
+        return (
+          <Card key={submission.submissionId} className="border-slate-200 shadow-md bg-white overflow-hidden">
+            <CardHeader 
+              className="bg-slate-50 border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+              onClick={() => toggleSubmission(submission.submissionId)}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-blue-100 rounded-lg">
+                    <Package className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold text-slate-800">
+                      Submission {submission.submissionId.slice(0, 8)}
+                    </CardTitle>
+                    <p className="text-sm text-slate-500">
+                      {formatDate(submission.respondedAt)}
+                    </p>
+                  </div>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+                <div className="flex items-center gap-3">
+                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
+                    {submission.items.length} items
+                  </span>
+                  {isExpanded ? (
+                    <ChevronUp className="w-5 h-5 text-slate-400" />
+                  ) : (
+                    <ChevronDown className="w-5 h-5 text-slate-400" />
+                  )}
+                </div>
+              </div>
+            </CardHeader>
+            
+            {isExpanded && (
+              <CardContent className="p-0">
+                <div className="divide-y divide-slate-100">
+                  {submission.items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors">
+                      <span className="text-slate-700 font-medium">{item.itemName}</span>
+                      <span className="font-bold text-slate-900 bg-slate-100 px-4 py-1.5 rounded-lg min-w-[60px] text-center">
+                        {item.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
