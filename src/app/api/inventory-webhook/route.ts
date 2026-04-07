@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { addSubmission } from "@/lib/inventory-store";
+import { supabase } from "@/lib/supabase";
 
 interface TallyField {
   key: string;
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Extract fields from Tally webhook
     const { fields } = payload.data;
     
-    // Process each field and store
+    // Process each field and store in Supabase
     const storedItems = [];
     
     for (const field of fields) {
@@ -46,16 +46,25 @@ export async function POST(request: NextRequest) {
         continue;
       }
       
-      // Store in memory
-      const submission = addSubmission({
-        itemName: field.label,
-        count: count,
-        submissionId: payload.data.submissionId,
-        formId: payload.data.formId,
-        respondedAt: new Date(payload.data.createdAt),
-      });
+      // Store in Supabase
+      const { data, error } = await supabase
+        .from("inventory_submissions")
+        .insert({
+          item_name: field.label,
+          count: count,
+          submission_id: payload.data.submissionId,
+          form_id: payload.data.formId,
+          responded_at: payload.data.createdAt,
+        })
+        .select()
+        .single();
       
-      storedItems.push(submission);
+      if (error) {
+        console.error("Supabase insert error:", error);
+        continue;
+      }
+      
+      storedItems.push(data);
     }
     
     console.log(`Stored ${storedItems.length} inventory items from submission ${payload.data.submissionId}`);

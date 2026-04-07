@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSubmissions } from "@/lib/inventory-store";
+import { supabase } from "@/lib/supabase";
 
 export async function GET(request: Request) {
   try {
@@ -7,33 +7,44 @@ export async function GET(request: Request) {
     const dateFrom = searchParams.get("from");
     const dateTo = searchParams.get("to");
     
-    // Fetch all submissions
-    let submissions = getSubmissions();
+    // Build query
+    let query = supabase
+      .from("inventory_submissions")
+      .select("*")
+      .order("created_at", { ascending: false });
     
-    // Filter by date if provided
-    if (dateFrom || dateTo) {
-      submissions = submissions.filter(sub => {
-        const subDate = new Date(sub.createdAt);
-        if (dateFrom && subDate < new Date(dateFrom)) return false;
-        if (dateTo && subDate > new Date(dateTo)) return false;
-        return true;
-      });
+    // Apply date filters if provided
+    if (dateFrom) {
+      query = query.gte("created_at", dateFrom);
+    }
+    if (dateTo) {
+      query = query.lte("created_at", dateTo);
     }
     
-    // Group by submissionId
-    const groupedSubmissions = submissions.reduce((acc, item) => {
-      if (!acc[item.submissionId]) {
-        acc[item.submissionId] = {
-          submissionId: item.submissionId,
-          formId: item.formId,
-          respondedAt: item.respondedAt,
-          createdAt: item.createdAt,
+    const { data: submissions, error } = await query;
+    
+    if (error) {
+      console.error("Supabase fetch error:", error);
+      return NextResponse.json(
+        { success: false, error: "Failed to fetch submissions" },
+        { status: 500 }
+      );
+    }
+    
+    // Group by submission_id
+    const groupedSubmissions = (submissions || []).reduce((acc, item) => {
+      if (!acc[item.submission_id]) {
+        acc[item.submission_id] = {
+          submissionId: item.submission_id,
+          formId: item.form_id,
+          respondedAt: item.responded_at,
+          createdAt: item.created_at,
           items: [],
         };
       }
-      acc[item.submissionId].items.push({
+      acc[item.submission_id].items.push({
         id: item.id,
-        itemName: item.itemName,
+        itemName: item.item_name,
         count: item.count,
       });
       return acc;
