@@ -36,6 +36,9 @@ export async function GET(request: Request) {
       if (!acc[item.submission_id]) {
         acc[item.submission_id] = {
           submissionId: item.submission_id,
+          submissionTitle: item.submission_title,
+          submitterName: item.submitter_name,
+          location: item.location,
           formId: item.form_id,
           respondedAt: item.responded_at,
           createdAt: item.created_at,

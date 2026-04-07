@@ -14,6 +14,9 @@ interface InventoryItem {
 
 interface Submission {
   submissionId: string;
+  submissionTitle?: string;
+  submitterName?: string;
+  location?: string;
   formId: string;
   respondedAt: string;
   createdAt: string;
@@ -180,7 +183,7 @@ export default function Inventory() {
                   </div>
                   <div>
                     <CardTitle className="text-lg font-semibold text-slate-800">
-                      Submission {submission.submissionId.slice(0, 8)}
+                      {submission.submissionTitle || `Submission ${submission.submissionId.slice(0, 8)}`}
                     </CardTitle>
                     <p className="text-sm text-slate-500">
                       {formatDate(submission.respondedAt)}

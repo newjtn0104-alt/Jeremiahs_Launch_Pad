@@ -10,7 +10,28 @@ export async function POST(request: NextRequest) {
     // Extract fields from Tally webhook
     const fields = payload.data?.fields || [];
     
-    console.log(`Processing ${fields.length} fields`);
+    // Find name and location fields for the submission title
+    let submitterName = "";
+    let location = "";
+    
+    // Look for name/location fields (they might be text fields, not numbers)
+    for (const field of fields) {
+      const label = field.label?.toLowerCase() || "";
+      if (label.includes("name") && !label.includes("item")) {
+        submitterName = String(field.value || "");
+      }
+      if (label.includes("location")) {
+        location = String(field.value || "");
+      }
+    }
+    
+    // Create submission title
+    const submissionTitle = submitterName && location 
+      ? `${submitterName} - ${location}`
+      : submitterName || location || `Submission ${payload.data.submissionId.slice(0, 8)}`;
+    
+    console.log(`Submitter: ${submitterName}, Location: ${location}`);
+    console.log(`Title: ${submissionTitle}`);
     
     // Process each field and store in Supabase
     const storedItems = [];
@@ -18,7 +39,13 @@ export async function POST(request: NextRequest) {
     for (const field of fields) {
       console.log(`Field: ${field.label}, Type: ${field.type}, Value: ${field.value}`);
       
-      // Skip empty values
+      // Skip empty values and non-inventory fields (name, location, date)
+      const label = field.label?.toLowerCase() || "";
+      if (label.includes("name") || label.includes("location") || label.includes("date")) {
+        console.log(`Skipping ${field.label} - metadata field`);
+        continue;
+      }
+      
       if (field.value === null || field.value === undefined || field.value === "") {
         console.log(`Skipping ${field.label} - empty value`);
         continue;
@@ -35,7 +62,7 @@ export async function POST(request: NextRequest) {
       
       console.log(`Storing ${field.label}: ${count}`);
       
-      // Store in Supabase
+      // Store in Supabase with submission title
       const { data, error } = await supabase
         .from("inventory_submissions")
         .insert({
@@ -44,6 +71,9 @@ export async function POST(request: NextRequest) {
           submission_id: payload.data.submissionId,
           form_id: payload.data.formId,
           responded_at: payload.data.createdAt,
+          submitter_name: submitterName,
+          location: location,
+          submission_title: submissionTitle,
         })
         .select()
         .single();
@@ -63,6 +93,7 @@ export async function POST(request: NextRequest) {
       { 
         success: true, 
         message: `Stored ${storedItems.length} items`,
+        title: submissionTitle,
         items: storedItems 
       }, 
       { status: 200 }
