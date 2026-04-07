@@ -1,0 +1,244 @@
+"use client";
+
+import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { 
+  Home, 
+  Rocket, 
+  Users, 
+  Target, 
+  Focus, 
+  Sparkles, 
+  DoorOpen, 
+  Contact,
+  Link2,
+  BookOpen,
+  GraduationCap,
+  Package,
+  ChevronDown,
+  ChevronRight
+} from "lucide-react";
+import WhosWorking from "./WhosWorking";
+import TastyTargets from "./TastyTargets";
+import FroggyFocuses from "./FroggyFocuses";
+import SweetSaying from "./SweetSaying";
+import SweetStart from "./SweetStart";
+import RevelClosingLive from "./RevelClosingLive";
+import CRM from "./CRM";
+import CalendarView from "./CalendarView";
+import QuickLinks from "./QuickLinks";
+import ICMLearning from "./ICMLearning";
+import Inventory from "./Inventory";
+
+type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "revel" | "crm" | "quicklinks";
+type LaunchPadSubItem = "whos-working" | "tasty-targets" | "froggy-focuses" | "sweet-start";
+type LearningSubItem = "icm-learning";
+
+export default function LaunchPadMenu() {
+  const [activeItem, setActiveItem] = useState<MenuItem>("launchpad");
+  const [activeLaunchPadItem, setActiveLaunchPadItem] = useState<LaunchPadSubItem>("sweet-start");
+  const [activeLearningItem, setActiveLearningItem] = useState<LearningSubItem>("icm-learning");
+  const [expandedMenu, setExpandedMenu] = useState<MenuItem | null>("launchpad");
+
+  const mainMenuItems = [
+    { id: "home" as MenuItem, label: "Home", icon: Home },
+    { 
+      id: "launchpad" as MenuItem, 
+      label: "Launch Pad", 
+      icon: Rocket,
+      subItems: [
+        { id: "whos-working" as LaunchPadSubItem, label: "Who's Working", icon: Users },
+        { id: "tasty-targets" as LaunchPadSubItem, label: "Tasty Targets", icon: Target },
+        { id: "froggy-focuses" as LaunchPadSubItem, label: "Froggy Focuses", icon: Focus },
+        { id: "sweet-start" as LaunchPadSubItem, label: "Sweet Start", icon: Sparkles },
+      ]
+    },
+    {
+      id: "learning" as MenuItem,
+      label: "Learning",
+      icon: GraduationCap,
+      subItems: [
+        { id: "icm-learning" as LearningSubItem, label: "ICM Learning", icon: BookOpen },
+      ]
+    },
+    { id: "inventory" as MenuItem, label: "Inventory", icon: Package },
+    { id: "revel" as MenuItem, label: "Revel Closing", icon: DoorOpen },
+    { id: "crm" as MenuItem, label: "CRM", icon: Contact },
+    { id: "quicklinks" as MenuItem, label: "Quick Links", icon: Link2 },
+  ];
+
+  const renderMainContent = () => {
+    switch (activeItem) {
+      case "home":
+        return <CalendarView />;
+      case "launchpad":
+        const renderLaunchPadContent = () => {
+          switch (activeLaunchPadItem) {
+            case "whos-working":
+              return <WhosWorking />;
+            case "tasty-targets":
+              return <TastyTargets />;
+            case "froggy-focuses":
+              return <FroggyFocuses />;
+            case "sweet-start":
+              return <SweetStart />;
+            default:
+              return <SweetStart />;
+          }
+        };
+        const Content = renderLaunchPadContent();
+        return Content ? (
+          <div className="animate-in fade-in duration-300">
+            {Content}
+          </div>
+        ) : null;
+      case "learning":
+        switch (activeLearningItem) {
+          case "icm-learning":
+            return <ICMLearning />;
+          default:
+            return <ICMLearning />;
+        }
+      case "inventory":
+        return <Inventory />;
+      case "revel":
+        return <RevelClosingLive />;
+      case "crm":
+        return <CRM />;
+      case "quicklinks":
+        return <QuickLinks />;
+      default:
+        return null;
+    }
+  };
+
+  const handleMenuClick = (itemId: MenuItem) => {
+    setActiveItem(itemId);
+    // Toggle expanded state for items with submenus
+    if (itemId === "launchpad" || itemId === "learning") {
+      if (expandedMenu === itemId) {
+        setExpandedMenu(null);
+      } else {
+        setExpandedMenu(itemId);
+      }
+    } else {
+      // For other items, collapse the menu
+      setExpandedMenu(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Header with Logo */}
+      <header className="bg-white border-b border-slate-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3 h-16">
+            <div className="p-2 rounded-xl bg-blue-600">
+              <Rocket className="w-6 h-6 text-white" />
+            </div>
+            <span className="text-xl font-bold text-slate-900">Jeremiah&apos;s LaunchPad</span>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex gap-6">
+          {/* Left Sidebar Navigation */}
+          <nav className="w-64 flex-shrink-0">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+              {mainMenuItems.map((item, index) => {
+                const Icon = item.icon;
+                const isActive = activeItem === item.id;
+                const isExpanded = expandedMenu === item.id;
+                const hasSubItems = item.subItems && item.subItems.length > 0;
+                
+                return (
+                  <div key={item.id}>
+                    <button
+                      onClick={() => handleMenuClick(item.id)}
+                      className={`w-full flex items-center justify-between px-4 py-3 text-left transition-colors ${
+                        isActive 
+                          ? "bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600" 
+                          : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                      } ${index !== 0 ? "border-t border-slate-100" : ""}`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-5 h-5 ${isActive ? "text-blue-600" : ""}`} />
+                        <span>{item.label}</span>
+                      </div>
+                      {hasSubItems && (
+                        isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />
+                      )}
+                    </button>
+                    
+                    {/* Sub-menu */}
+                    {hasSubItems && isExpanded && (
+                      <div className="bg-slate-50 border-t border-slate-100">
+                        {item.id === "launchpad" && item.subItems?.map((subItem) => {
+                          const SubIcon = subItem.icon;
+                          const isSubActive = activeLaunchPadItem === subItem.id && activeItem === "launchpad";
+                          
+                          return (
+                            <button
+                              key={subItem.id}
+                              onClick={() => {
+                                setActiveItem(item.id);
+                                setActiveLaunchPadItem(subItem.id as LaunchPadSubItem);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
+                                isSubActive
+                                  ? "bg-blue-100 text-blue-700 font-medium"
+                                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                              }`}
+                            >
+                              <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : ""}`} />
+                              <span>{subItem.label}</span>
+                            </button>
+                          );
+                        })}
+                        {item.id === "learning" && item.subItems?.map((subItem) => {
+                          const SubIcon = subItem.icon;
+                          const isSubActive = activeLearningItem === subItem.id && activeItem === "learning";
+                          
+                          return (
+                            <button
+                              key={subItem.id}
+                              onClick={() => {
+                                setActiveItem(item.id);
+                                setActiveLearningItem(subItem.id as LearningSubItem);
+                              }}
+                              className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
+                                isSubActive
+                                  ? "bg-blue-100 text-blue-700 font-medium"
+                                  : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                              }`}
+                            >
+                              <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : ""}`} />
+                              <span>{subItem.label}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </nav>
+
+          {/* Main Content Area */}
+          <main className="flex-1 min-w-0">
+            {/* Sweet Saying - Always Visible */}
+            <div className="mb-6">
+              <SweetSaying />
+            </div>
+            
+            {/* Dynamic Content */}
+            {renderMainContent()}
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}

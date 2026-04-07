@@ -25,63 +25,42 @@ async function apiGet(endpoint: string, params?: Record<string, any>) {
   return response.json();
 }
 
-async function fetchStoreData(estId: number, dateStr: string) {
-  // Fetch orders
-  const ordersData = await apiGet("Order", {
-    establishment: estId,
-    created_date__gte: `${dateStr}T00:00:00`,
-    created_date__lte: `${dateStr}T23:59:59`,
-    limit: 200,
-  });
-
-  // Fetch payments
-  const paymentsData = await apiGet("Payment", {
-    establishment: estId,
-    created_date__gte: `${dateStr}T00:00:00`,
-    created_date__lte: `${dateStr}T23:59:59`,
-    limit: 200,
-  });
-
-  // Fetch payouts
-  const payoutsData = await apiGet("Payout", {
-    establishment: estId,
-    created_date__gte: `${dateStr}T00:00:00`,
-    created_date__lte: `${dateStr}T23:59:59`,
-    limit: 100,
-  });
-
-  // Fetch timesheet
-  const timesheetData = await apiGet("TimeSheetEntry", {
-    establishment: estId,
-    clock_in__gte: `${dateStr}T00:00:00`,
-    clock_in__lte: `${dateStr}T23:59:59`,
-    limit: 100,
-  });
-
-  const orders = ordersData.objects || [];
-  const payments = paymentsData.objects || [];
-  const payouts = payoutsData.objects || [];
-  const timesheet = timesheetData.objects || [];
-
-  // Calculate sales
-  let totalSales = 0;
-  let subtotal = 0;
-  let tax = 0;
-  let discount = 0;
-  let orderCount = 0;
-
-  for (const order of orders) {
-    if (order.deleted || order.is_unpaid) continue;
-    totalSales += parseFloat(order.final_total || 0);
-    subtotal += parseFloat(order.subtotal || 0);
-    tax += parseFloat(order.tax || 0);
-    discount += parseFloat(order.discount_amount || 0);
-    orderCount++;
+// Fetch ALL payments with pagination
+async function fetchAllPayments(estId: number, startDate: string, endDate: string) {
+  const allPayments: any[] = [];
+  let offset = 0;
+  const limit = 1000;
+  let hasMore = true;
+  
+  while (hasMore) {
+    const data = await apiGet("Payment", {
+      establishment: estId,
+      created_date__gte: `${startDate}T00:00:00`,
+      created_date__lte: `${endDate}T23:59:59`,
+      limit: limit,
+      offset: offset,
+    });
+    
+    const payments = data.objects || [];
+    allPayments.push(...payments);
+    
+    if (payments.length < limit) {
+      hasMore = false;
+    } else {
+      offset += limit;
+    }
+    
+    if (offset >= 10000) {
+      console.warn(`Payment fetch limit reached for ${startDate} to ${endDate}`);
+      break;
+    }
   }
+  
+  return allPayments;
+}
 
-  const netSales = subtotal - discount;
-
-  // Calculate payments (exclude Type 4)
+// Calculate total payments
+function calculateTotalPayments(payments: any[]) {
   let cash = 0;
   let credit = 0;
   let other = 0;
@@ -103,29 +82,17 @@ async function fetchStoreData(estId: number, dateStr: string) {
     }
   }
 
-  const totalPayments = cash + credit + other + tips;
+  return { total: cash + credit + other + tips, cash, credit, other, tips };
+}
 
-  // Calculate payouts
-  let payIns = 0;
-  let payOuts = 0;
-
-  for (const payout of payouts) {
-    const amount = parseFloat(payout.amount || 0);
-    if (amount < 0) {
-      payIns += Math.abs(amount);
-    } else {
-      payOuts += amount;
-    }
-  }
-
-  // Calculate labor (exclude cashiers with $0 wage)
+// Calculate labor cost
+function calculateLaborCost(timesheet: any[]) {
   let laborCost = 0;
-  let employeeCount = 0;
   const employees = new Set();
 
   for (const entry of timesheet) {
     const wage = parseFloat(entry.role_wage || 0);
-    if (wage === 0) continue; // Skip cashiers
+    if (wage === 0) continue;
 
     const clockIn = entry.clock_in;
     const clockOut = entry.clock_out;
@@ -143,24 +110,113 @@ async function fetchStoreData(estId: number, dateStr: string) {
     }
   }
 
-  employeeCount = employees.size;
+  return { laborCost, employeeCount: employees.size };
+}
 
-  // Calculate labor %
-  const laborPct = totalPayments > 0 ? (laborCost / totalPayments) * 100 : 0;
+async function fetchStoreData(estId: number, dateStr: string) {
+  const monthStart = dateStr.substring(0, 8) + "01";
+
+  // Fetch TODAY'S data
+  const [ordersData, payments, payoutsData, timesheetData] = await Promise.all([
+    apiGet("Order", {
+      establishment: estId,
+      created_date__gte: `${dateStr}T00:00:00`,
+      created_date__lte: `${dateStr}T23:59:59`,
+      limit: 200,
+    }),
+    fetchAllPayments(estId, dateStr, dateStr),
+    apiGet("Payout", {
+      establishment: estId,
+      created_date__gte: `${dateStr}T00:00:00`,
+      created_date__lte: `${dateStr}T23:59:59`,
+      limit: 100,
+    }),
+    apiGet("TimeSheetEntry", {
+      establishment: estId,
+      clock_in__gte: `${dateStr}T00:00:00`,
+      clock_in__lte: `${dateStr}T23:59:59`,
+      limit: 100,
+    }),
+  ]);
+
+  // Fetch MONTH TO DATE data
+  const [monthPaymentsData, monthTimesheetData] = await Promise.all([
+    fetchAllPayments(estId, monthStart, dateStr),
+    apiGet("TimeSheetEntry", {
+      establishment: estId,
+      clock_in__gte: `${monthStart}T00:00:00`,
+      clock_in__lte: `${dateStr}T23:59:59`,
+      limit: 1000,
+    }),
+  ]);
+
+  const orders = ordersData.objects || [];
+  const payouts = payoutsData.objects || [];
+  const timesheet = timesheetData.objects || [];
+  const monthTimesheet = monthTimesheetData.objects || [];
+
+  // Calculate sales
+  let totalSales = 0;
+  let subtotal = 0;
+  let discount = 0;
+  let orderCount = 0;
+
+  for (const order of orders) {
+    if (order.deleted || order.is_unpaid) continue;
+    totalSales += parseFloat(order.final_total || 0);
+    subtotal += parseFloat(order.subtotal || 0);
+    discount += parseFloat(order.discount_amount || 0);
+    orderCount++;
+  }
+
+  const netSales = subtotal - discount;
+
+  // Calculate today's payments
+  const todayPayments = calculateTotalPayments(payments);
+
+  // Calculate payouts
+  let payIns = 0;
+  let payOuts = 0;
+
+  for (const payout of payouts) {
+    const amount = parseFloat(payout.amount || 0);
+    if (amount < 0) {
+      payIns += Math.abs(amount);
+    } else {
+      payOuts += amount;
+    }
+  }
+
+  // Calculate today's labor
+  const todayLabor = calculateLaborCost(timesheet);
+  const laborPct = todayPayments.total > 0 
+    ? (todayLabor.laborCost / todayPayments.total) * 100 
+    : 0;
+
+  // Calculate month to date
+  const monthPayments = calculateTotalPayments(monthPaymentsData);
+  const monthLabor = calculateLaborCost(monthTimesheet);
+  const monthToDateLaborPct = monthPayments.total > 0 
+    ? (monthLabor.laborCost / monthPayments.total) * 100 
+    : 0;
 
   return {
-    totalPayments,
-    cash,
-    credit,
-    other,
-    tips,
+    totalPayments: todayPayments.total,
+    cash: todayPayments.cash,
+    credit: todayPayments.credit,
+    other: todayPayments.other,
+    tips: todayPayments.tips,
     netSales,
-    laborCost,
+    laborCost: todayLabor.laborCost,
     laborPct,
     payIns,
     payOuts,
     orderCount,
-    employeeCount,
+    employeeCount: todayLabor.employeeCount,
+    // Month to date
+    monthToDateLaborCost: monthLabor.laborCost,
+    monthToDateLaborPct,
+    monthToDatePayments: monthPayments.total,
   };
 }
 

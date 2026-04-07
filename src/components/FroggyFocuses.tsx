@@ -1,9 +1,20 @@
 "use client";
 
 import { useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Edit2, Check, Plus, X } from "lucide-react";
+
+interface Focus {
+  id: number;
+  text: string;
+  completed: boolean;
+}
 
 export default function FroggyFocuses() {
-  const [focuses, setFocuses] = useState([
+  const [focuses, setFocuses] = useState<Focus[]>([
     { id: 1, text: "Greet every customer with a smile", completed: false },
     { id: 2, text: "Upsell Italian Ice samples", completed: false },
     { id: 3, text: "Keep counter clean and organized", completed: false },
@@ -28,78 +39,78 @@ export default function FroggyFocuses() {
     setFocuses(focuses.filter((f) => f.id !== id));
   };
 
+  const completedCount = focuses.filter(f => f.completed).length;
+
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-xl">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-2xl font-bold text-white flex items-center gap-2">
-          <span className="text-3xl">🐸</span>
-          Froggy Focuses
-        </h2>
-        <button
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="text-sm text-slate-500">
+          {completedCount} of {focuses.length} completed
+        </div>
+        <Button 
+          variant="ghost" 
+          size="sm"
           onClick={() => setIsEditing(!isEditing)}
-          className="text-blue-200 hover:text-white transition-colors"
         >
-          {isEditing ? "✓ Done" : "✏️ Edit"}
-        </button>
+          {isEditing ? (
+            <><Check className="w-4 h-4 mr-2" /> Done</>
+          ) : (
+            <><Edit2 className="w-4 h-4 mr-2" /> Edit</>
+          )}
+        </Button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {focuses.map((focus) => (
           <div
             key={focus.id}
-            className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
+            className={`flex items-center gap-3 p-3 rounded-lg border transition-all ${
               focus.completed
-                ? "bg-green-500/20 border border-green-500/30"
-                : "bg-white/10 border border-white/10"
+                ? "bg-green-50 border-green-200"
+                : "bg-white border-slate-200"
             }`}
           >
-            <button
-              onClick={() => toggleComplete(focus.id)}
-              className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-colors ${
-                focus.completed
-                  ? "bg-green-500 border-green-500 text-white"
-                  : "border-white/40 hover:border-white"
-              }`}
-            >
-              {focus.completed && "✓"}
-            </button>
+            <Checkbox
+              checked={focus.completed}
+              onCheckedChange={() => toggleComplete(focus.id)}
+              className="data-[state=checked]:bg-green-500 data-[state=checked]:border-green-500"
+            />
             <span
               className={`flex-1 ${
                 focus.completed
-                  ? "text-white line-through opacity-60"
-                  : "text-white"
+                  ? "text-slate-500 line-through"
+                  : "text-slate-900"
               }`}
             >
               {focus.text}
             </span>
             {isEditing && (
-              <button
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => removeFocus(focus.id)}
-                className="text-red-400 hover:text-red-300"
+                className="text-red-500 hover:text-red-700 hover:bg-red-50"
               >
-                ✕
-              </button>
+                <X className="w-4 h-4" />
+              </Button>
             )}
           </div>
         ))}
       </div>
 
       {isEditing && (
-        <div className="mt-4 flex gap-2">
-          <input
+        <div className="flex gap-2 mt-4">
+          <Input
             type="text"
             value={newFocus}
             onChange={(e) => setNewFocus(e.target.value)}
             placeholder="Add new focus..."
-            className="flex-1 p-2 rounded-lg bg-white/20 text-white placeholder-blue-200 border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="flex-1"
             onKeyPress={(e) => e.key === "Enter" && addFocus()}
           />
-          <button
-            onClick={addFocus}
-            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-          >
-            Add
-          </button>
+          <Button onClick={addFocus}>
+            <Plus className="w-4 h-4 mr-2" /> Add
+          </Button>
         </div>
       )}
     </div>

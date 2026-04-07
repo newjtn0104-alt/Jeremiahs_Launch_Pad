@@ -1,5 +1,8 @@
 "use client";
 
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+
 export default function SweetStart() {
   const steps = [
     { number: "1", text: "Ensure you're ready to start your shift. Are you in proper uniform? Stow your personal belongings. Take a restroom break if needed." },
@@ -15,27 +18,19 @@ export default function SweetStart() {
   ];
 
   return (
-    <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-xl">
-      <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
-        <span className="text-3xl">🌅</span>
-        Getting a Sweet Start
-      </h2>
-
-      <div className="space-y-3">
-        {steps.map((step, index) => (
-          <div
-            key={index}
-            className="flex items-start gap-3 bg-white/10 rounded-xl p-3 hover:bg-white/20 transition-colors"
-          >
-            <div className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">
+    <div className="space-y-3">
+      {steps.map((step, index) => (
+        <Card key={index} className="hover:shadow-md transition-shadow">
+          <CardContent className="flex items-start gap-4 p-4">
+            <Badge className="flex-shrink-0 w-8 h-8 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-100 flex items-center justify-center text-sm font-bold p-0">
               {step.number}
-            </div>
-            <p className="text-white text-sm leading-relaxed pt-1">
+            </Badge>
+            <p className="text-slate-700 text-sm leading-relaxed pt-1">
               {step.text}
             </p>
-          </div>
-        ))}
-      </div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }
