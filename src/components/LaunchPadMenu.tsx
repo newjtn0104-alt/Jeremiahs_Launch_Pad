@@ -31,8 +31,9 @@ import CalendarView from "./CalendarView";
 import QuickLinks from "./QuickLinks";
 import ICMLearning from "./ICMLearning";
 import Inventory from "./Inventory";
+import Checklists from "./Checklists";
 
-type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "revel" | "crm" | "quicklinks";
+type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks";
 type LaunchPadSubItem = "whos-working" | "tasty-targets" | "froggy-focuses" | "sweet-start";
 type LearningSubItem = "icm-learning";
 
@@ -65,6 +66,7 @@ export default function LaunchPadMenu() {
       ]
     },
     { id: "inventory" as MenuItem, label: "Inventory", icon: Package },
+    { id: "checklists" as MenuItem, label: "Checklists", icon: FileText },
     { id: "revel" as MenuItem, label: "Revel Closing", icon: DoorOpen },
     { id: "crm" as MenuItem, label: "CRM", icon: Contact },
     { id: "quicklinks" as MenuItem, label: "Quick Links", icon: Link2 },
@@ -103,6 +105,10 @@ export default function LaunchPadMenu() {
             return <ICMLearning />;
         }
       case "inventory":
+        return <Inventory />;
+      case "checklists":
+        return <Checklists />;
+      case "revel":
         return <Inventory />;
       case "revel":
         return <RevelClosingLive />;
