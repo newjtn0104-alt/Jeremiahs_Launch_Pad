@@ -134,7 +134,6 @@ const categoryIcons: Record<string, React.ReactNode> = {
 
 export default function Checklists() {
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(["Daily Sidework", "Operational"]));
-  const [downloading, setDownloading] = useState<string | null>(null);
 
   const toggleCategory = (category: string) => {
     setExpandedCategories(prev => {
@@ -149,10 +148,16 @@ export default function Checklists() {
   };
 
   const handleDownload = (checklist: ChecklistItem) => {
-    setDownloading(checklist.id);
-    // In production, this would link to the actual PDF
-    // For now, we'll create a placeholder message
-    setTimeout(() => setDownloading(null), 1000);
+    const link = document.createElement("a");
+    link.href = `/checklists/${checklist.filename}`;
+    link.download = checklist.filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleView = (checklist: ChecklistItem) => {
+    window.open(`/checklists/${checklist.filename}`, "_blank");
   };
 
   const categories = Array.from(new Set(checklists.map(c => c.category)));
@@ -227,19 +232,15 @@ export default function Checklists() {
                           variant="outline"
                           size="sm"
                           onClick={() => handleDownload(checklist)}
-                          disabled={downloading === checklist.id}
                           className="flex items-center gap-2"
                         >
-                          {downloading === checklist.id ? (
-                            <span className="animate-spin">⏳</span>
-                          ) : (
-                            <Download className="w-4 h-4" />
-                          )}
+                          <Download className="w-4 h-4" />
                           Download
                         </Button>
                         <Button
                           variant="ghost"
                           size="sm"
+                          onClick={() => handleView(checklist)}
                           className="flex items-center gap-2"
                         >
                           <ExternalLink className="w-4 h-4" />
