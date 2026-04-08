@@ -18,7 +18,8 @@ import {
   ChevronDown,
   ChevronRight,
   Menu,
-  X
+  X,
+  FileText
 } from "lucide-react";
 import WhosWorking from "./WhosWorking";
 import TastyTargets from "./TastyTargets";
