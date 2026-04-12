@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp } from "lucide-react";
+import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -81,6 +81,11 @@ export default function Inventory() {
       hour: '2-digit',
       minute: '2-digit'
     });
+  };
+
+  // Count zero inventory items in a submission
+  const getZeroCountItems = (items: InventoryItem[]) => {
+    return items.filter(item => item.count === 0);
   };
 
   return (
@@ -169,17 +174,23 @@ export default function Inventory() {
 
       {submissions.map((submission) => {
         const isExpanded = expandedSubmissions.has(submission.submissionId);
+        const zeroItems = getZeroCountItems(submission.items);
+        const hasZeroItems = zeroItems.length > 0;
         
         return (
-          <Card key={submission.submissionId} className="border-slate-200 shadow-md bg-white overflow-hidden">
+          <Card key={submission.submissionId} className={`border-slate-200 shadow-md bg-white overflow-hidden ${hasZeroItems ? 'border-l-4 border-l-red-500' : ''}`}>
             <CardHeader 
               className="bg-slate-50 border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
               onClick={() => toggleSubmission(submission.submissionId)}
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="p-2 bg-blue-100 rounded-lg">
-                    <Package className="w-5 h-5 text-blue-600" />
+                  <div className={`p-2 rounded-lg ${hasZeroItems ? 'bg-red-100' : 'bg-blue-100'}`}>
+                    {hasZeroItems ? (
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                    ) : (
+                      <Package className="w-5 h-5 text-blue-600" />
+                    )}
                   </div>
                   <div>
                     <CardTitle className="text-lg font-semibold text-slate-800">
@@ -191,6 +202,12 @@ export default function Inventory() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
+                  {hasZeroItems && (
+                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold flex items-center gap-1">
+                      <AlertTriangle className="w-3 h-3" />
+                      {zeroItems.length} OUT OF STOCK
+                    </span>
+                  )}
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
                     {submission.items.length} items
                   </span>
@@ -207,9 +224,18 @@ export default function Inventory() {
               <CardContent className="p-0">
                 <div className="divide-y divide-slate-100">
                   {submission.items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors">
-                      <span className="text-slate-700 font-medium">{item.itemName}</span>
-                      <span className="font-bold text-slate-900 bg-slate-100 px-4 py-1.5 rounded-lg min-w-[60px] text-center">
+                    <div key={item.id} className={`flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors ${item.count === 0 ? 'bg-red-50' : ''}`}>
+                      <span className={`font-medium ${item.count === 0 ? 'text-red-700' : 'text-slate-700'}`}>
+                        {item.itemName}
+                        {item.count === 0 && (
+                          <span className="ml-2 text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">OUT OF STOCK</span>
+                        )}
+                      </span>
+                      <span className={`font-bold px-4 py-1.5 rounded-lg min-w-[60px] text-center ${
+                        item.count === 0 
+                          ? 'text-white bg-red-600' 
+                          : 'text-slate-900 bg-slate-100'
+                      }`}>
                         {item.count}
                       </span>
                     </div>

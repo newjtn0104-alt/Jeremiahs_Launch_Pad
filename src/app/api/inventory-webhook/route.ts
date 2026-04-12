@@ -54,10 +54,15 @@ export async function POST(request: NextRequest) {
       // Try to parse as number
       const count = parseFloat(String(field.value));
       
-      // Skip if not a valid number or is 0
-      if (isNaN(count) || count === 0) {
-        console.log(`Skipping ${field.label} - invalid or zero count: ${count}`);
+      // Skip if not a valid number (but ALLOW zero - critical for inventory!)
+      if (isNaN(count)) {
+        console.log(`Skipping ${field.label} - invalid number: ${field.value}`);
         continue;
+      }
+      
+      // Log zero counts specially - these are critical out-of-stock alerts
+      if (count === 0) {
+        console.log(`🚨 ZERO COUNT ALERT: ${field.label} = 0 (OUT OF STOCK)`);
       }
       
       console.log(`Storing ${field.label}: ${count}`);
