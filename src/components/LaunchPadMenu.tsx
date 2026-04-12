@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Menu,
   X,
-  FileText
+  FileText,
+  Truck
 } from "lucide-react";
 import WhosWorking from "./WhosWorking";
 import TastyTargets from "./TastyTargets";
@@ -33,8 +34,9 @@ import QuickLinks from "./QuickLinks";
 import ICMLearning from "./ICMLearning";
 import Inventory from "./Inventory";
 import Checklists from "./Checklists";
+import SyscoOrders from "./SyscoOrders";
 
-type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks";
+type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks" | "sysco";
 type LaunchPadSubItem = "whos-working" | "tasty-targets" | "froggy-focuses" | "sweet-start";
 type LearningSubItem = "icm-learning";
 
@@ -68,6 +70,7 @@ export default function LaunchPadMenu() {
     },
     { id: "inventory" as MenuItem, label: "Inventory", icon: Package },
     { id: "checklists" as MenuItem, label: "Checklists", icon: FileText },
+    { id: "sysco" as MenuItem, label: "Sysco Orders", icon: Truck },
     { id: "revel" as MenuItem, label: "Revel Closing", icon: DoorOpen },
     { id: "crm" as MenuItem, label: "CRM", icon: Contact },
     { id: "quicklinks" as MenuItem, label: "Quick Links", icon: Link2 },
@@ -109,8 +112,8 @@ export default function LaunchPadMenu() {
         return <Inventory />;
       case "checklists":
         return <Checklists />;
-      case "revel":
-        return <Inventory />;
+      case "sysco":
+        return <SyscoOrders />;
       case "revel":
         return <RevelClosingLive />;
       case "crm":
