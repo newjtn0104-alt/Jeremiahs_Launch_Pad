@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Clock, AlertTriangle, CheckCircle, RefreshCw } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle, RefreshCw, Download, Minimize2, Maximize2, FileSpreadsheet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
@@ -25,6 +25,8 @@ export default function LaborVariance() {
   const [loading, setLoading] = useState(false);
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [weeks, setWeeks] = useState<string[]>([]);
+  const [minimized, setMinimized] = useState(false);
+  const [expandedLocations, setExpandedLocations] = useState<Record<string, boolean>>({});
 
   const fetchData = async () => {
     setLoading(true);
@@ -43,6 +45,12 @@ export default function LaborVariance() {
         if (!selectedWeek && uniqueWeeks.length > 0) {
           setSelectedWeek(uniqueWeeks[0]);
         }
+
+        // Initialize all locations as expanded
+        const locations = [...new Set(result.data.map((d: LaborVarianceEntry) => d.location))];
+        const expanded: Record<string, boolean> = {};
+        locations.forEach(loc => expanded[loc] = true);
+        setExpandedLocations(expanded);
       }
     } catch (err) {
       console.error("Failed to fetch labor variance:", err);
@@ -54,6 +62,42 @@ export default function LaborVariance() {
   useEffect(() => {
     fetchData();
   }, [selectedWeek]);
+
+  const exportToCSV = () => {
+    if (data.length === 0) return;
+
+    const headers = ["Week Start", "Week End", "Employee", "Location", "Scheduled Hours", "Actual Hours", "Variance", "Shifts Scheduled", "Shifts Worked", "Status"];
+    const rows = data.map(d => [
+      d.week_start,
+      d.week_end,
+      d.employee_name,
+      d.location,
+      d.scheduled_hours,
+      d.actual_hours,
+      d.variance,
+      d.shifts_scheduled,
+      d.shifts_worked,
+      d.status
+    ]);
+
+    const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `labor_variance_${selectedWeek}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  const toggleLocation = (location: string) => {
+    setExpandedLocations(prev => ({
+      ...prev,
+      [location]: !prev[location]
+    }));
+  };
 
   const getStatusBadge = (variance: number) => {
     if (variance < -2) {
@@ -89,6 +133,45 @@ export default function LaborVariance() {
   const totalActual = data.reduce((sum, d) => sum + (d.actual_hours || 0), 0);
   const totalVariance = totalActual - totalScheduled;
 
+  if (minimized) {
+    return (
+      <Card className="border-slate-200 shadow-md bg-white">
+        <CardHeader className="py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-blue-100">
+                <Clock className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-bold text-slate-900">Labor Variance</CardTitle>
+                <p className="text-xs text-slate-500">
+                  {data.length} employees | {totalScheduled.toFixed(1)}h scheduled | {totalActual.toFixed(1)}h actual
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={fetchData} 
+                variant="ghost" 
+                size="icon"
+                disabled={loading}
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+              <Button 
+                onClick={() => setMinimized(false)} 
+                variant="ghost" 
+                size="icon"
+              >
+                <Maximize2 className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header Card */}
@@ -106,15 +189,33 @@ export default function LaborVariance() {
                 </p>
               </div>
             </div>
-            <Button 
-              onClick={fetchData} 
-              variant="outline" 
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={exportToCSV} 
+                variant="outline" 
+                disabled={data.length === 0}
+                className="flex items-center gap-2"
+              >
+                <FileSpreadsheet className="w-4 h-4" />
+                Export CSV
+              </Button>
+              <Button 
+                onClick={fetchData} 
+                variant="outline" 
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+              <Button 
+                onClick={() => setMinimized(true)} 
+                variant="ghost" 
+                size="icon"
+              >
+                <Minimize2 className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -162,10 +263,14 @@ export default function LaborVariance() {
         const locationScheduled = entries.reduce((sum, e) => sum + e.scheduled_hours, 0);
         const locationActual = entries.reduce((sum, e) => sum + e.actual_hours, 0);
         const locationVariance = locationActual - locationScheduled;
+        const isExpanded = expandedLocations[location] !== false;
         
         return (
           <Card key={location} className="border-slate-200 shadow-md bg-white">
-            <CardHeader className="bg-slate-50 border-b border-slate-200">
+            <CardHeader 
+              className="bg-slate-50 border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
+              onClick={() => toggleLocation(location)}
+            >
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-blue-100 rounded-lg">
@@ -180,44 +285,49 @@ export default function LaborVariance() {
                     </p>
                   </div>
                 </div>
-                <Badge className={locationVariance < -5 ? 'bg-red-100 text-red-700' : locationVariance > 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}>
-                  {locationVariance > 0 ? '+' : ''}{locationVariance.toFixed(1)} hrs
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge className={locationVariance < -5 ? 'bg-red-100 text-red-700' : locationVariance > 5 ? 'bg-yellow-100 text-yellow-700' : 'bg-green-100 text-green-700'}>
+                    {locationVariance > 0 ? '+' : ''}{locationVariance.toFixed(1)} hrs
+                  </Badge>
+                  {isExpanded ? <Minimize2 className="w-4 h-4 text-slate-400" /> : <Maximize2 className="w-4 h-4 text-slate-400" />}
+                </div>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
-              <div className="divide-y divide-slate-100">
-                {entries.sort((a, b) => a.variance - b.variance).map((entry) => (
-                  <div key={entry.id} className={`flex items-center justify-between px-6 py-3 hover:bg-slate-50 ${entry.variance < -2 ? 'bg-red-50/50' : entry.variance > 2 ? 'bg-yellow-50/50' : ''}`}>
-                    <div className="flex items-center gap-3">
-                      {getStatusIcon(entry.variance)}
-                      <div>
-                        <p className="font-medium text-slate-800">{entry.employee_name}</p>
-                        <p className="text-sm text-slate-500">
-                          {entry.shifts_scheduled} shifts scheduled | {entry.shifts_worked} shifts worked
-                        </p>
+            {isExpanded && (
+              <CardContent className="p-0">
+                <div className="divide-y divide-slate-100">
+                  {entries.sort((a, b) => a.variance - b.variance).map((entry) => (
+                    <div key={entry.id} className={`flex items-center justify-between px-6 py-3 hover:bg-slate-50 ${entry.variance < -2 ? 'bg-red-50/50' : entry.variance > 2 ? 'bg-yellow-50/50' : ''}`}>
+                      <div className="flex items-center gap-3">
+                        {getStatusIcon(entry.variance)}
+                        <div>
+                          <p className="font-medium text-slate-800">{entry.employee_name}</p>
+                          <p className="text-sm text-slate-500">
+                            {entry.shifts_scheduled} shifts scheduled | {entry.shifts_worked} shifts worked
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="flex items-center gap-4 text-sm">
+                          <span className="text-slate-600">
+                            <span className="text-slate-400">Scheduled:</span> {entry.scheduled_hours.toFixed(1)} hrs
+                          </span>
+                          <span className="text-slate-600">
+                            <span className="text-slate-400">Actual:</span> {entry.actual_hours.toFixed(1)} hrs
+                          </span>
+                          <span className={`font-bold ${entry.variance < -2 ? 'text-red-600' : entry.variance > 2 ? 'text-yellow-600' : 'text-green-600'}`}>
+                            {entry.variance > 0 ? '+' : ''}{entry.variance.toFixed(1)} hrs
+                          </span>
+                        </div>
+                        <div className="mt-1">
+                          {getStatusBadge(entry.variance)}
+                        </div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="flex items-center gap-4 text-sm">
-                        <span className="text-slate-600">
-                          <span className="text-slate-400">Scheduled:</span> {entry.scheduled_hours.toFixed(1)} hrs
-                        </span>
-                        <span className="text-slate-600">
-                          <span className="text-slate-400">Actual:</span> {entry.actual_hours.toFixed(1)} hrs
-                        </span>
-                        <span className={`font-bold ${entry.variance < -2 ? 'text-red-600' : entry.variance > 2 ? 'text-yellow-600' : 'text-green-600'}`}>
-                          {entry.variance > 0 ? '+' : ''}{entry.variance.toFixed(1)} hrs
-                        </span>
-                      </div>
-                      <div className="mt-1">
-                        {getStatusBadge(entry.variance)}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
+                  ))}
+                </div>
+              </CardContent>
+            )}
           </Card>
         );
       })}
