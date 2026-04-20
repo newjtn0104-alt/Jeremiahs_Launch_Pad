@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, AlertTriangle, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -88,6 +88,65 @@ export default function Inventory() {
     return items.filter(item => item.count === 0);
   };
 
+  // Export single submission to CSV
+  const exportSubmissionToCSV = (submission: Submission) => {
+    const headers = ['Item Name', 'Count', 'Status'];
+    const rows = submission.items.map(item => [
+      `"${item.itemName}"`,
+      item.count,
+      item.count === 0 ? 'OUT OF STOCK' : 'OK'
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inventory-${submission.submissionId.slice(0, 8)}-${new Date(submission.respondedAt).toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
+  // Export all submissions to CSV
+  const exportAllToCSV = () => {
+    const headers = ['Submission ID', 'Date', 'Title', 'Item Name', 'Count', 'Status'];
+    const rows: string[][] = [];
+    
+    submissions.forEach(submission => {
+      submission.items.forEach(item => {
+        rows.push([
+          submission.submissionId.slice(0, 8),
+          new Date(submission.respondedAt).toISOString().split('T')[0],
+          `"${submission.submissionTitle || 'N/A'}"`,
+          `"${item.itemName}"`,
+          item.count.toString(),
+          item.count === 0 ? 'OUT OF STOCK' : 'OK'
+        ]);
+      });
+    });
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `inventory-all-${new Date().toISOString().split('T')[0]}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="space-y-6">
       <Card className="border-slate-200 shadow-md bg-white">
@@ -104,15 +163,27 @@ export default function Inventory() {
                 </p>
               </div>
             </div>
-            <Button 
-              onClick={fetchSubmissions} 
-              variant="outline" 
-              disabled={loading}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
+            <div className="flex gap-2">
+              {submissions.length > 0 && (
+                <Button 
+                  onClick={exportAllToCSV} 
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Export All
+                </Button>
+              )}
+              <Button 
+                onClick={fetchSubmissions} 
+                variant="outline" 
+                disabled={loading}
+                className="flex items-center gap-2"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -240,6 +311,20 @@ export default function Inventory() {
                       </span>
                     </div>
                   ))}
+                </div>
+                <div className="p-4 border-t border-slate-200 bg-slate-50">
+                  <Button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      exportSubmissionToCSV(submission);
+                    }}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-2"
+                  >
+                    <Download className="w-4 h-4" />
+                    Export to CSV
+                  </Button>
                 </div>
               </CardContent>
             )}

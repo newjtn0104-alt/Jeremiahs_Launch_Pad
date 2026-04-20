@@ -31,7 +31,7 @@ export async function GET(request: Request) {
       );
     }
     
-    // Group by submission_id
+    // Group by submission_id and remove duplicate items
     const groupedSubmissions = (submissions || []).reduce((acc, item) => {
       if (!acc[item.submission_id]) {
         acc[item.submission_id] = {
@@ -42,20 +42,33 @@ export async function GET(request: Request) {
           formId: item.form_id,
           respondedAt: item.responded_at,
           createdAt: item.created_at,
-          items: [],
+          items: new Map(), // Use Map to prevent duplicates
         };
       }
-      acc[item.submission_id].items.push({
-        id: item.id,
-        itemName: item.item_name,
-        count: item.count,
-      });
+      
+      // Use item_name as key to prevent duplicates
+      // Keep the latest entry (higher ID = more recent)
+      const existingItem = acc[item.submission_id].items.get(item.item_name);
+      if (!existingItem || item.id > existingItem.id) {
+        acc[item.submission_id].items.set(item.item_name, {
+          id: item.id,
+          itemName: item.item_name,
+          count: item.count,
+        });
+      }
+      
       return acc;
     }, {} as Record<string, any>);
     
+    // Convert Maps to arrays
+    const result = Object.values(groupedSubmissions).map((submission: any) => ({
+      ...submission,
+      items: Array.from(submission.items.values()),
+    }));
+    
     return NextResponse.json({
       success: true,
-      submissions: Object.values(groupedSubmissions),
+      submissions: result,
     });
     
   } catch (error) {
