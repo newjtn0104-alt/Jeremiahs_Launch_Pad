@@ -89,7 +89,11 @@ export default function Inventory() {
   };
 
   // Export single submission to CSV
-  const exportSubmissionToCSV = (submission: Submission) => {
+  const exportSubmissionToCSV = (submission: Submission, e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    
     const headers = ['Item Name', 'Count', 'Status'];
     const rows = submission.items.map(item => [
       `"${item.itemName}"`,
@@ -282,6 +286,16 @@ export default function Inventory() {
                   <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
                     {submission.items.length} items
                   </span>
+                  {/* Export button always visible */}
+                  <Button
+                    onClick={(e) => exportSubmissionToCSV(submission, e)}
+                    variant="ghost"
+                    size="sm"
+                    className="p-2 h-8 w-8"
+                    title="Export to CSV"
+                  >
+                    <Download className="w-4 h-4 text-slate-600" />
+                  </Button>
                   {isExpanded ? (
                     <ChevronUp className="w-5 h-5 text-slate-400" />
                   ) : (
@@ -311,20 +325,6 @@ export default function Inventory() {
                       </span>
                     </div>
                   ))}
-                </div>
-                <div className="p-4 border-t border-slate-200 bg-slate-50">
-                  <Button 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      exportSubmissionToCSV(submission);
-                    }}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    Export to CSV
-                  </Button>
                 </div>
               </CardContent>
             )}
