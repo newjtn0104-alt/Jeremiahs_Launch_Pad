@@ -4,9 +4,11 @@ import { supabase } from "@/lib/supabase";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
+    console.log("Received inventory submission:", body);
 
     // Validate required fields
     if (!body.name || !body.location || !body.date) {
+      console.log("Missing required fields");
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
@@ -20,7 +22,7 @@ export async function POST(request: Request) {
         employee_name: body.name,
         location: body.location,
         date: body.date,
-        items: body.items,
+        items: body.items || {},
         submitted_at: new Date().toISOString(),
       })
       .select()
@@ -29,11 +31,12 @@ export async function POST(request: Request) {
     if (error) {
       console.error("Supabase insert error:", error);
       return NextResponse.json(
-        { success: false, error: "Failed to save inventory" },
+        { success: false, error: "Database error: " + error.message },
         { status: 500 }
       );
     }
 
+    console.log("Successfully saved submission:", data);
     return NextResponse.json({
       success: true,
       submission: data,
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error submitting inventory:", error);
     return NextResponse.json(
-      { success: false, error: "Failed to submit inventory" },
+      { success: false, error: "Server error: " + (error as Error).message },
       { status: 500 }
     );
   }

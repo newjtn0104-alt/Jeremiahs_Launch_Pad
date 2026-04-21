@@ -136,7 +136,8 @@ export default function InventoryForm() {
           });
         }, 3000);
       } else {
-        alert("Failed to submit inventory. Please try again.");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        alert("Failed to submit: " + (errorData.error || "Please try again."));
       }
     } catch (error) {
       console.error("Submit error:", error);
