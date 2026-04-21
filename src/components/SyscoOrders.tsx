@@ -95,22 +95,31 @@ export default function SyscoOrders() {
     }
   };
 
-  // Group orders by location
-  const ordersByLocation = orders.reduce((acc, order) => {
-    if (!acc[order.location]) {
-      acc[order.location] = [];
+  // Format date safely
+  const formatDate = (dateString: string) => {
+    if (!dateString || dateString === 'Invalid Date') return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return 'N/A';
+      return date.toLocaleDateString('en-US', { 
+        weekday: 'short', 
+        month: 'short', 
+        day: 'numeric',
+        year: 'numeric'
+      });
+    } catch {
+      return 'N/A';
     }
-    acc[order.location].push(order);
-    return acc;
-  }, {} as Record<string, SyscoOrder[]>);
+  };
 
-  // Get most recent orders (last 7 days)
-  const recentOrders = orders.filter(order => {
-    const orderDate = new Date(order.orderDate);
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    return orderDate >= sevenDaysAgo;
-  });
+  // Get unique locations for summary
+  const uniqueLocations = [...new Set(orders.map(o => o.location))];
+  
+  // Count orders by location
+  const orderCounts = orders.reduce((acc, order) => {
+    acc[order.location] = (acc[order.location] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   return (
     <div className="space-y-6">
@@ -125,7 +134,7 @@ export default function SyscoOrders() {
               <div>
                 <CardTitle className="text-xl font-bold text-slate-900">Sysco Orders</CardTitle>
                 <p className="text-sm text-slate-500">
-                  {orders.length} total orders on record
+                  {orders.length} total orders • {uniqueLocations.length} locations
                 </p>
               </div>
             </div>
@@ -146,12 +155,17 @@ export default function SyscoOrders() {
         </CardContent>
       </Card>
 
-      {/* Recent Orders by Location */}
-      {Object.entries(ordersByLocation).map(([location, locationOrders]) => {
-        const latestOrder = locationOrders[0];
-        
-        return (
-          <Card key={location} className="border-slate-200 shadow-md bg-white">
+      {/* Orders List - Each order shown separately */}
+      {orders.length === 0 ? (
+        <Card className="border-slate-200 shadow-md bg-white">
+          <CardContent className="p-8 text-center">
+            <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500">No orders found</p>
+          </CardContent>
+        </Card>
+      ) : (
+        orders.map((order, index) => (
+          <Card key={order.id} className="border-slate-200 shadow-md bg-white">
             <CardHeader className="bg-slate-50 border-b border-slate-200">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
@@ -160,45 +174,37 @@ export default function SyscoOrders() {
                   </div>
                   <div>
                     <CardTitle className="text-lg font-semibold text-slate-800">
-                      {location}
+                      {order.location}
                     </CardTitle>
                     <p className="text-sm text-slate-500">
-                      {locationOrders.length} orders
+                      Order #{order.orderNumber}
                     </p>
                   </div>
                 </div>
-                {getStatusBadge(latestOrder?.status || 'unknown')}
+                {getStatusBadge(order.status)}
               </div>
             </CardHeader>
             <CardContent className="p-4">
-              {latestOrder ? (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Order #</span>
-                    <span className="font-mono font-medium">{latestOrder.orderNumber}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Order Date</span>
-                    <span>{new Date(latestOrder.orderDate).toLocaleDateString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-slate-600">Expected Delivery</span>
-                    <span>{latestOrder.expectedDelivery ? new Date(latestOrder.expectedDelivery).toLocaleDateString() : 'TBD'}</span>
-                  </div>
-                  {latestOrder.totalAmount && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-slate-600">Total</span>
-                      <span className="font-medium">${latestOrder.totalAmount.toFixed(2)}</span>
-                    </div>
-                  )}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Order Date</span>
+                  <span className="font-medium">{formatDate(order.orderDate)}</span>
                 </div>
-              ) : (
-                <p className="text-slate-500 text-center py-4">No recent orders</p>
-              )}
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-600">Expected Delivery</span>
+                  <span className="font-medium">{formatDate(order.expectedDelivery) || 'TBD'}</span>
+                </div>
+                {order.totalAmount && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-600">Total</span>
+                    <span className="font-medium">${order.totalAmount.toFixed(2)}</span>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
-        );
-      })}
+        ))
+      )}
 
       {/* Quick Actions */}
       <Card className="border-slate-200 shadow-md bg-white">
@@ -229,34 +235,6 @@ export default function SyscoOrders() {
           </Button>
         </CardContent>
       </Card>
-
-      {/* Order History */}
-      {recentOrders.length > 0 && (
-        <Card className="border-slate-200 shadow-md bg-white">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-slate-800">Recent Order History (Last 7 Days)</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="divide-y divide-slate-100">
-              {recentOrders.map((order) => (
-                <div key={order.id} className="flex items-center justify-between px-6 py-3 hover:bg-slate-50">
-                  <div className="flex items-center gap-3">
-                    {getStatusIcon(order.status)}
-                    <div>
-                      <p className="font-medium text-slate-800">{order.location}</p>
-                      <p className="text-sm text-slate-500">Order #{order.orderNumber}</p>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-slate-600">{new Date(order.orderDate).toLocaleDateString()}</p>
-                    {getStatusBadge(order.status)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
