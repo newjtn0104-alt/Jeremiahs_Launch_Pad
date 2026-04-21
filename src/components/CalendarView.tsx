@@ -27,7 +27,7 @@ import {
   parseISO,
   isValid
 } from "date-fns";
-import SevenShiftsSchedule from "./SevenShiftsSchedule";
+import SevenShiftsEvents from "./SevenShiftsEvents";
 
 interface CalendarEvent {
   uid: string;
@@ -419,7 +419,7 @@ export default function CalendarView() {
       </Card>
 
       {/* 7shifts Schedule */}
-      <SevenShiftsSchedule />
+      <SevenShiftsEvents />
     </div>
   );
 }
