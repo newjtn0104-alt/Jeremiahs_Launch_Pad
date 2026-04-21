@@ -15,13 +15,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Insert into database
+    // Insert into database - use submission_date instead of date
     const { data, error } = await supabase
       .from("inventory_submissions")
       .insert({
         employee_name: body.name,
         location: body.location,
-        date: body.date,
+        submission_date: body.date,
         items: body.items || {},
         submitted_at: new Date().toISOString(),
       })
