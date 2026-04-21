@@ -14,7 +14,7 @@ import {
   Star,
   ExternalLink
 } from "lucide-react";
-import { format, parseISO, isValid, isToday, isTomorrow, isFuture } from "date-fns";
+import { format, isToday, isTomorrow } from "date-fns";
 
 interface CalendarEvent {
   uid: string;
@@ -39,15 +39,20 @@ export default function SevenShiftsEvents() {
       setLoading(true);
       setError(null);
       
-      // Fetch from the 7shifts iCal feed
-      const response = await fetch("https://app.7shifts.com/page/calendar/events/128416/66efb332161525df991291a30a0ce3a4");
+      // Fetch from our API route (avoids CORS)
+      const response = await fetch("/api/7shifts/events");
       
       if (!response.ok) {
         throw new Error("Failed to fetch events");
       }
 
-      const icalData = await response.text();
-      const parsedEvents = parseICal(icalData);
+      const result = await response.json();
+      
+      if (!result.success) {
+        throw new Error(result.error || "Failed to fetch events");
+      }
+      
+      const parsedEvents = parseICal(result.data);
       setEvents(parsedEvents);
     } catch (err) {
       console.error("Events fetch error:", err);
