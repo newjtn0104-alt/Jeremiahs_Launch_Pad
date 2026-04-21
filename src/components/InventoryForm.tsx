@@ -7,11 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, CheckCircle, Package } from "lucide-react";
 
-interface InventoryItem {
-  name: string;
-  quantity: string;
-}
-
 interface FormData {
   name: string;
   location: string;
@@ -116,12 +111,23 @@ export default function InventoryForm() {
     setSubmitting(true);
 
     try {
+      // Include ALL items, setting 0 for empty ones
+      const allItems: Record<string, string> = {};
+      INVENTORY_ITEMS.forEach((item) => {
+        allItems[item.id] = formData.items[item.id] || "0";
+      });
+
+      const submitData = {
+        ...formData,
+        items: allItems,
+      };
+
       const response = await fetch("/api/inventory/submit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(submitData),
       });
 
       if (response.ok) {
