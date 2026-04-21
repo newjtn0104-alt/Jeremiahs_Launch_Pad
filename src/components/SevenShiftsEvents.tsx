@@ -12,7 +12,10 @@ import {
   AlertCircle,
   Gift,
   Star,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  User
 } from "lucide-react";
 import { format, isToday, isTomorrow } from "date-fns";
 
@@ -29,6 +32,7 @@ export default function SevenShiftsEvents() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedEvent, setExpandedEvent] = useState<string | null>(null);
 
   useEffect(() => {
     fetchEventsData();
@@ -39,7 +43,6 @@ export default function SevenShiftsEvents() {
       setLoading(true);
       setError(null);
       
-      // Fetch from our API route (avoids CORS)
       const response = await fetch("/api/7shifts/events");
       
       if (!response.ok) {
@@ -71,13 +74,11 @@ export default function SevenShiftsEvents() {
     let currentLine = "";
 
     for (const line of lines) {
-      // Handle line continuations
       if (line.startsWith(" ")) {
         currentLine += line.substring(1);
         continue;
       }
 
-      // Process the previous line
       if (currentLine) {
         processLine(currentLine, inEvent, currentEvent, events);
       }
@@ -96,7 +97,6 @@ export default function SevenShiftsEvents() {
       }
     }
 
-    // Process the last line
     if (currentLine) {
       processLine(currentLine, inEvent, currentEvent, events);
     }
@@ -137,7 +137,6 @@ export default function SevenShiftsEvents() {
     const cleanStr = dateStr.trim();
     
     if (cleanStr.includes("T")) {
-      // Date-time format
       const year = parseInt(cleanStr.substring(0, 4));
       const month = parseInt(cleanStr.substring(4, 6)) - 1;
       const day = parseInt(cleanStr.substring(6, 8));
@@ -151,7 +150,6 @@ export default function SevenShiftsEvents() {
       
       return new Date(year, month, day, hour, minute, second);
     } else {
-      // Date only format
       const year = parseInt(cleanStr.substring(0, 4));
       const month = parseInt(cleanStr.substring(4, 6)) - 1;
       const day = parseInt(cleanStr.substring(6, 8));
@@ -190,6 +188,10 @@ export default function SevenShiftsEvents() {
     if (isToday(date)) return 'Today';
     if (isTomorrow(date)) return 'Tomorrow';
     return format(date, 'EEEE, MMM d');
+  };
+
+  const toggleExpand = (uid: string) => {
+    setExpandedEvent(expandedEvent === uid ? null : uid);
   };
 
   if (loading) {
@@ -252,38 +254,107 @@ export default function SevenShiftsEvents() {
           </div>
         ) : (
           <div className="space-y-3">
-            {upcomingEvents.map((event) => (
-              <div
-                key={event.uid}
-                className="flex items-center gap-4 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition-colors"
-              >
-                <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-purple-100 flex flex-col items-center justify-center">
-                  <span className="text-xs font-semibold text-purple-600 uppercase">
-                    {format(event.startDate, 'MMM')}
-                  </span>
-                  <span className="text-lg font-bold text-purple-700">
-                    {format(event.startDate, 'd')}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {getEventIcon(event.summary)}
-                    <h4 className="font-semibold text-slate-900 truncate">
-                      {event.summary.replace(/·/g, '').trim()}
-                    </h4>
-                  </div>
-                  <p className="text-sm text-slate-500 mt-1">
-                    {getEventType(event.summary)}
-                  </p>
-                </div>
-                <Badge 
-                  variant={isToday(event.startDate) ? "default" : "secondary"}
-                  className="flex-shrink-0"
+            {upcomingEvents.map((event) => {
+              const isExpanded = expandedEvent === event.uid;
+              
+              return (
+                <div
+                  key={event.uid}
+                  className="border border-slate-200 rounded-lg overflow-hidden transition-all hover:border-purple-300"
                 >
-                  {getDateLabel(event.startDate)}
-                </Badge>
-              </div>
-            ))}
+                  {/* Header - Always visible */}
+                  <button
+                    onClick={() => toggleExpand(event.uid)}
+                    className="w-full flex items-center gap-4 p-3 bg-white hover:bg-slate-50 transition-colors text-left"
+                  >
+                    <div className="flex-shrink-0 w-14 h-14 rounded-lg bg-purple-100 flex flex-col items-center justify-center">
+                      <span className="text-xs font-semibold text-purple-600 uppercase">
+                        {format(event.startDate, 'MMM')}
+                      </span>
+                      <span className="text-lg font-bold text-purple-700">
+                        {format(event.startDate, 'd')}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {getEventIcon(event.summary)}
+                        <h4 className="font-semibold text-slate-900 truncate">
+                          {event.summary.replace(/·/g, '').trim()}
+                        </h4>
+                      </div>
+                      <p className="text-sm text-slate-500 mt-1">
+                        {getEventType(event.summary)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge 
+                        variant={isToday(event.startDate) ? "default" : "secondary"}
+                        className="flex-shrink-0"
+                      >
+                        {getDateLabel(event.startDate)}
+                      </Badge>
+                      {isExpanded ? (
+                        <ChevronUp className="w-5 h-5 text-slate-400" />
+                      ) : (
+                        <ChevronDown className="w-5 h-5 text-slate-400" />
+                      )}
+                    </div>
+                  </button>
+                  
+                  {/* Expanded Details */}
+                  {isExpanded && (
+                    <div className="px-3 pb-3 bg-slate-50 border-t border-slate-100">
+                      <div className="pt-3 space-y-3">
+                        {/* Full Date & Time */}
+                        <div className="flex items-start gap-3">
+                          <Clock className="w-4 h-4 text-slate-400 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-medium text-slate-700">Date & Time</p>
+                            <p className="text-sm text-slate-600">
+                              {format(event.startDate, 'EEEE, MMMM d, yyyy')}
+                            </p>
+                            {event.endDate && event.endDate !== event.startDate && (
+                              <p className="text-sm text-slate-500">
+                                to {format(event.endDate, 'EEEE, MMMM d, yyyy')}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Description */}
+                        {event.description && (
+                          <div className="flex items-start gap-3">
+                            <User className="w-4 h-4 text-slate-400 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">Details</p>
+                              <p className="text-sm text-slate-600">{event.description}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Location */}
+                        {event.location && (
+                          <div className="flex items-start gap-3">
+                            <MapPin className="w-4 h-4 text-slate-400 mt-0.5" />
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">Location</p>
+                              <p className="text-sm text-slate-600">{event.location}</p>
+                            </div>
+                          </div>
+                        )}
+                        
+                        {/* Event ID */}
+                        <div className="pt-2 border-t border-slate-200">
+                          <p className="text-xs text-slate-400">
+                            Event ID: {event.uid.substring(0, 20)}...
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </CardContent>
