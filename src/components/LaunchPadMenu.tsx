@@ -21,7 +21,9 @@ import {
   X,
   FileText,
   Truck,
-  Clock
+  Clock,
+  PlusCircle,
+  List
 } from "lucide-react";
 import WhosWorking from "./WhosWorking";
 import TastyTargets from "./TastyTargets";
@@ -34,6 +36,7 @@ import CalendarView from "./CalendarView";
 import QuickLinks from "./QuickLinks";
 import ICMLearning from "./ICMLearning";
 import Inventory from "./Inventory";
+import InventoryForm from "./InventoryForm";
 import Checklists from "./Checklists";
 import SyscoOrders from "./SyscoOrders";
 import LaborVariance from "./LaborVariance";
@@ -41,11 +44,13 @@ import LaborVariance from "./LaborVariance";
 type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks" | "sysco" | "labor";
 type LaunchPadSubItem = "whos-working" | "tasty-targets" | "froggy-focuses" | "sweet-start";
 type LearningSubItem = "icm-learning";
+type InventorySubItem = "view-inventory" | "submit-inventory";
 
 export default function LaunchPadMenu() {
   const [activeItem, setActiveItem] = useState<MenuItem>("launchpad");
   const [activeLaunchPadItem, setActiveLaunchPadItem] = useState<LaunchPadSubItem>("sweet-start");
   const [activeLearningItem, setActiveLearningItem] = useState<LearningSubItem>("icm-learning");
+  const [activeInventoryItem, setActiveInventoryItem] = useState<InventorySubItem>("view-inventory");
   const [expandedMenu, setExpandedMenu] = useState<MenuItem | null>("launchpad");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -70,7 +75,15 @@ export default function LaunchPadMenu() {
         { id: "icm-learning" as LearningSubItem, label: "ICM Learning", icon: BookOpen },
       ]
     },
-    { id: "inventory" as MenuItem, label: "Inventory", icon: Package },
+    { 
+      id: "inventory" as MenuItem, 
+      label: "Inventory", 
+      icon: Package,
+      subItems: [
+        { id: "view-inventory" as InventorySubItem, label: "View Inventory", icon: List },
+        { id: "submit-inventory" as InventorySubItem, label: "Submit Form", icon: PlusCircle },
+      ]
+    },
     { id: "checklists" as MenuItem, label: "Checklists", icon: FileText },
     { id: "sysco" as MenuItem, label: "Sysco Orders", icon: Truck },
     { id: "labor" as MenuItem, label: "Labor Variance", icon: Clock },
@@ -112,7 +125,14 @@ export default function LaunchPadMenu() {
             return <ICMLearning />;
         }
       case "inventory":
-        return <Inventory />;
+        switch (activeInventoryItem) {
+          case "view-inventory":
+            return <Inventory />;
+          case "submit-inventory":
+            return <InventoryForm />;
+          default:
+            return <Inventory />;
+        }
       case "checklists":
         return <Checklists />;
       case "sysco":
@@ -133,7 +153,7 @@ export default function LaunchPadMenu() {
   const handleMenuClick = (itemId: MenuItem) => {
     setActiveItem(itemId);
     setMobileMenuOpen(false);
-    if (itemId === "launchpad" || itemId === "learning") {
+    if (itemId === "launchpad" || itemId === "learning" || itemId === "inventory") {
       if (expandedMenu === itemId) {
         setExpandedMenu(null);
       } else {
@@ -206,6 +226,29 @@ export default function LaunchPadMenu() {
                       onClick={() => {
                         setActiveItem(item.id);
                         setActiveLearningItem(subItem.id as LearningSubItem);
+                        setMobileMenuOpen(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
+                        isSubActive
+                          ? "bg-blue-100 text-blue-700 font-medium"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                      }`}
+                    >
+                      <SubIcon className={`w-4 h-4 ${isSubActive ? "text-blue-600" : ""}`} />
+                      <span>{subItem.label}</span>
+                    </button>
+                  );
+                })}
+                {item.id === "inventory" && item.subItems?.map((subItem) => {
+                  const SubIcon = subItem.icon;
+                  const isSubActive = activeInventoryItem === subItem.id && activeItem === "inventory";
+                  
+                  return (
+                    <button
+                      key={subItem.id}
+                      onClick={() => {
+                        setActiveItem(item.id);
+                        setActiveInventoryItem(subItem.id as InventorySubItem);
                         setMobileMenuOpen(false);
                       }}
                       className={`w-full flex items-center gap-3 px-4 py-2 pl-12 text-left text-sm transition-colors ${
