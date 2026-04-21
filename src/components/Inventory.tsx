@@ -2,25 +2,17 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, AlertTriangle, Download } from "lucide-react";
+import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-interface InventoryItem {
-  id: string;
-  itemName: string;
-  count: number;
-}
-
 interface Submission {
-  submissionId: string;
-  submissionTitle?: string;
-  submitterName?: string;
-  location?: string;
-  formId: string;
-  respondedAt: string;
-  createdAt: string;
-  items: InventoryItem[];
+  id: string;
+  employeeName: string;
+  location: string;
+  date: string;
+  items: Record<string, string>;
+  submittedAt: string;
 }
 
 export default function Inventory() {
@@ -34,15 +26,15 @@ export default function Inventory() {
   const fetchSubmissions = async () => {
     setLoading(true);
     setError(null);
-    
+
     try {
       const params = new URLSearchParams();
       if (dateFrom) params.append("from", dateFrom);
       if (dateTo) params.append("to", dateTo);
-      
+
       const response = await fetch(`/api/inventory?${params.toString()}`);
       const data = await response.json();
-      
+
       if (data.success) {
         setSubmissions(data.submissions);
       } else {
@@ -61,7 +53,7 @@ export default function Inventory() {
   }, []);
 
   const toggleSubmission = (submissionId: string) => {
-    setExpandedSubmissions(prev => {
+    setExpandedSubmissions((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(submissionId)) {
         newSet.delete(submissionId);
@@ -73,19 +65,12 @@ export default function Inventory() {
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleString('en-US', {
-      weekday: 'short',
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+    return new Date(dateString).toLocaleString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
     });
-  };
-
-  // Count zero inventory items in a submission
-  const getZeroCountItems = (items: InventoryItem[]) => {
-    return items.filter(item => item.count === 0);
   };
 
   // Export single submission to CSV
@@ -93,24 +78,20 @@ export default function Inventory() {
     if (e) {
       e.stopPropagation();
     }
-    
-    const headers = ['Item Name', 'Count', 'Status'];
-    const rows = submission.items.map(item => [
-      `"${item.itemName}"`,
-      item.count,
-      item.count === 0 ? 'OUT OF STOCK' : 'OK'
+
+    const headers = ["Item Name", "Count"];
+    const rows = Object.entries(submission.items).map(([itemName, count]) => [
+      `"${itemName}"`,
+      count,
     ]);
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+
+    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `inventory-${submission.submissionId.slice(0, 8)}-${new Date(submission.respondedAt).toISOString().split('T')[0]}.csv`;
+    a.download = `inventory_${submission.employeeName}_${submission.date}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -119,32 +100,22 @@ export default function Inventory() {
 
   // Export all submissions to CSV
   const exportAllToCSV = () => {
-    const headers = ['Submission ID', 'Date', 'Title', 'Item Name', 'Count', 'Status'];
+    const headers = ["Date", "Employee", "Location", "Item Name", "Count"];
     const rows: string[][] = [];
-    
-    submissions.forEach(submission => {
-      submission.items.forEach(item => {
-        rows.push([
-          submission.submissionId.slice(0, 8),
-          new Date(submission.respondedAt).toISOString().split('T')[0],
-          `"${submission.submissionTitle || 'N/A'}"`,
-          `"${item.itemName}"`,
-          item.count.toString(),
-          item.count === 0 ? 'OUT OF STOCK' : 'OK'
-        ]);
+
+    submissions.forEach((sub) => {
+      Object.entries(sub.items).forEach(([itemName, count]) => {
+        rows.push([sub.date, sub.employeeName, sub.location, itemName, count]);
       });
     });
-    
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
-    ].join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+
+    const csvContent = [headers.join(","), ...rows.map((row) => row.map((cell) => `"${cell}"`).join(","))].join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
+    const a = document.createElement("a");
     a.href = url;
-    a.download = `inventory-all-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `inventory_all_${new Date().toISOString().split("T")[0]}.csv`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -153,6 +124,7 @@ export default function Inventory() {
 
   return (
     <div className="space-y-6">
+      {/* Header Card */}
       <Card className="border-slate-200 shadow-md bg-white">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -162,139 +134,87 @@ export default function Inventory() {
               </div>
               <div>
                 <CardTitle className="text-xl font-bold text-slate-900">Inventory Submissions</CardTitle>
-                <p className="text-sm text-slate-500">
-                  {submissions.length} submission{submissions.length !== 1 ? 's' : ''} found
-                </p>
+                <p className="text-sm text-slate-500">{submissions.length} submissions found</p>
               </div>
             </div>
-            <div className="flex gap-2">
-              {submissions.length > 0 && (
-                <Button 
-                  onClick={exportAllToCSV} 
-                  variant="outline"
-                  className="flex items-center gap-2"
-                >
-                  <Download className="w-4 h-4" />
-                  Export All
-                </Button>
-              )}
-              <Button 
-                onClick={fetchSubmissions} 
-                variant="outline" 
-                disabled={loading}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-            </div>
+            <Button variant="outline" onClick={fetchSubmissions} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4 items-end">
+          {/* Date Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
             <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-1 block">From Date</label>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <Input
-                  type="date"
-                  value={dateFrom}
-                  onChange={(e) => setDateFrom(e.target.value)}
-                  className="w-full"
-                />
-              </div>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-2">
+                <Calendar className="w-4 h-4" />
+                From Date
+              </label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
             </div>
             <div className="flex-1">
-              <label className="text-sm font-medium text-slate-700 mb-1 block">To Date</label>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-slate-400" />
-                <Input
-                  type="date"
-                  value={dateTo}
-                  onChange={(e) => setDateTo(e.target.value)}
-                  className="w-full"
-                />
-              </div>
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-2">
+                <Calendar className="w-4 h-4" />
+                To Date
+              </label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
             </div>
-            <Button onClick={fetchSubmissions} className="bg-green-600 hover:bg-green-700">
-              Filter
-            </Button>
+            <div className="flex items-end">
+              <Button onClick={fetchSubmissions} disabled={loading} className="w-full sm:w-auto">
+                Filter
+              </Button>
+            </div>
           </div>
+
+          {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 mb-4">{error}</div>}
+
+          {/* Export All Button */}
+          {submissions.length > 0 && (
+            <Button variant="outline" onClick={exportAllToCSV} className="mb-4 w-full">
+              <Download className="w-4 h-4 mr-2" />
+              Export All to CSV
+            </Button>
+          )}
         </CardContent>
       </Card>
 
-      {error && (
-        <Card className="border-red-200 bg-red-50">
-          <CardContent className="p-4 text-red-700">
-            {error}
-          </CardContent>
-        </Card>
-      )}
-
+      {/* Submissions List */}
       {submissions.length === 0 && !loading && !error && (
         <Card className="border-slate-200 shadow-md bg-white">
-          <CardContent className="p-12 text-center">
-            <div className="max-w-md mx-auto">
-              <div className="p-4 rounded-full bg-slate-100 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                <Package className="w-8 h-8 text-slate-400" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-700 mb-2">No Submissions Yet</h3>
-              <p className="text-slate-500">
-                Share your Tally form URL with employees. Submissions will appear here automatically.
-              </p>
-            </div>
+          <CardContent className="p-8 text-center">
+            <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500">No submissions found.</p>
           </CardContent>
         </Card>
       )}
 
       {submissions.map((submission) => {
-        const isExpanded = expandedSubmissions.has(submission.submissionId);
-        const zeroItems = getZeroCountItems(submission.items);
-        const hasZeroItems = zeroItems.length > 0;
-        
+        const isExpanded = expandedSubmissions.has(submission.id);
+        const itemCount = Object.keys(submission.items).length;
+
         return (
-          <Card key={submission.submissionId} className={`border-slate-200 shadow-md bg-white overflow-hidden ${hasZeroItems ? 'border-l-4 border-l-red-500' : ''}`}>
-            <CardHeader 
-              className="bg-slate-50 border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
-              onClick={() => toggleSubmission(submission.submissionId)}
-            >
+          <Card key={submission.id} className="border-slate-200 shadow-md bg-white overflow-hidden">
+            <div className="p-4 cursor-pointer hover:bg-slate-50" onClick={() => toggleSubmission(submission.id)}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className={`p-2 rounded-lg ${hasZeroItems ? 'bg-red-100' : 'bg-blue-100'}`}>
-                    {hasZeroItems ? (
-                      <AlertTriangle className="w-5 h-5 text-red-600" />
-                    ) : (
-                      <Package className="w-5 h-5 text-blue-600" />
-                    )}
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-lg">
+                    <Package className="w-5 h-5 text-green-600" />
                   </div>
                   <div>
-                    <CardTitle className="text-lg font-semibold text-slate-800">
-                      {submission.submissionTitle || `Submission ${submission.submissionId.slice(0, 8)}`}
-                    </CardTitle>
+                    <h3 className="font-semibold text-slate-900">{submission.employeeName}</h3>
                     <p className="text-sm text-slate-500">
-                      {formatDate(submission.respondedAt)}
+                      {submission.location} • {formatDate(submission.date)} • {itemCount} items
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  {hasZeroItems && (
-                    <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm font-bold flex items-center gap-1">
-                      <AlertTriangle className="w-3 h-3" />
-                      {zeroItems.length} OUT OF STOCK
-                    </span>
-                  )}
-                  <span className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm font-medium">
-                    {submission.items.length} items
-                  </span>
-                  {/* Export button always visible */}
+                <div className="flex items-center gap-2">
                   <Button
-                    onClick={(e) => exportSubmissionToCSV(submission, e)}
                     variant="ghost"
                     size="sm"
-                    className="p-2 h-8 w-8"
-                    title="Export to CSV"
+                    onClick={(e) => exportSubmissionToCSV(submission, e)}
                   >
-                    <Download className="w-4 h-4 text-slate-600" />
+                    <Download className="w-4 h-4" />
                   </Button>
                   {isExpanded ? (
                     <ChevronUp className="w-5 h-5 text-slate-400" />
@@ -303,30 +223,22 @@ export default function Inventory() {
                   )}
                 </div>
               </div>
-            </CardHeader>
-            
+            </div>
+
             {isExpanded && (
-              <CardContent className="p-0">
-                <div className="divide-y divide-slate-100">
-                  {submission.items.map((item) => (
-                    <div key={item.id} className={`flex items-center justify-between px-6 py-3 hover:bg-slate-50 transition-colors ${item.count === 0 ? 'bg-red-50' : ''}`}>
-                      <span className={`font-medium ${item.count === 0 ? 'text-red-700' : 'text-slate-700'}`}>
-                        {item.itemName}
-                        {item.count === 0 && (
-                          <span className="ml-2 text-xs font-bold text-red-600 bg-red-100 px-2 py-0.5 rounded">OUT OF STOCK</span>
-                        )}
-                      </span>
-                      <span className={`font-bold px-4 py-1.5 rounded-lg min-w-[60px] text-center ${
-                        item.count === 0 
-                          ? 'text-white bg-red-600' 
-                          : 'text-slate-900 bg-slate-100'
-                      }`}>
-                        {item.count}
-                      </span>
-                    </div>
-                  ))}
+              <div className="border-t border-slate-200 bg-slate-50">
+                <div className="p-4">
+                  <h4 className="font-medium text-slate-700 mb-3">Inventory Items</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {Object.entries(submission.items).map(([itemName, count]) => (
+                      <div key={itemName} className="bg-white p-3 rounded-lg border border-slate-200">
+                        <p className="text-xs text-slate-500 truncate">{itemName}</p>
+                        <p className="text-lg font-semibold text-slate-900">{count}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </CardContent>
+              </div>
             )}
           </Card>
         );

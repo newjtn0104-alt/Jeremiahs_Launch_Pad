@@ -6,74 +6,48 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const dateFrom = searchParams.get("from");
     const dateTo = searchParams.get("to");
-    
+
     // Build query
     let query = supabase
       .from("inventory_submissions")
       .select("*")
-      .order("created_at", { ascending: false });
-    
+      .order("submitted_at", { ascending: false });
+
     // Apply date filters if provided
     if (dateFrom) {
-      query = query.gte("created_at", dateFrom);
+      query = query.gte("date", dateFrom);
     }
     if (dateTo) {
-      query = query.lte("created_at", dateTo);
+      query = query.lte("date", dateTo);
     }
-    
+
     const { data: submissions, error } = await query;
-    
+
     if (error) {
       console.error("Supabase fetch error:", error);
       return NextResponse.json(
-        { success: false, error: "Failed to fetch submissions" },
+        { success: false, error: "Failed to fetch submissions: " + error.message },
         { status: 500 }
       );
     }
-    
-    // Group by submission_id and remove duplicate items
-    const groupedSubmissions = (submissions || []).reduce((acc, item) => {
-      if (!acc[item.submission_id]) {
-        acc[item.submission_id] = {
-          submissionId: item.submission_id,
-          submissionTitle: item.submission_title,
-          submitterName: item.submitter_name,
-          location: item.location,
-          formId: item.form_id,
-          respondedAt: item.responded_at,
-          createdAt: item.created_at,
-          items: new Map(), // Use Map to prevent duplicates
-        };
-      }
-      
-      // Use item_name as key to prevent duplicates
-      // Keep the latest entry (higher ID = more recent)
-      const existingItem = acc[item.submission_id].items.get(item.item_name);
-      if (!existingItem || item.id > existingItem.id) {
-        acc[item.submission_id].items.set(item.item_name, {
-          id: item.id,
-          itemName: item.item_name,
-          count: item.count,
-        });
-      }
-      
-      return acc;
-    }, {} as Record<string, any>);
-    
-    // Convert Maps to arrays
-    const result = Object.values(groupedSubmissions).map((submission: any) => ({
-      ...submission,
-      items: Array.from(submission.items.values()),
+
+    // Format submissions for frontend
+    const formattedSubmissions = (submissions || []).map((sub: any) => ({
+      id: sub.id,
+      employeeName: sub.employee_name,
+      location: sub.location,
+      date: sub.date,
+      items: sub.items || {},
+      submittedAt: sub.submitted_at,
     }));
-    
+
     return NextResponse.json({
       success: true,
-      submissions: result,
+      submissions: formattedSubmissions,
     });
-    
   } catch (error) {
     console.error("Error fetching inventory:", error);
-    
+
     return NextResponse.json(
       {
         success: false,
