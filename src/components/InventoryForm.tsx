@@ -126,7 +126,6 @@ export default function InventoryForm() {
 
       if (response.ok) {
         setSubmitted(true);
-        // Reset form after 3 seconds
         setTimeout(() => {
           setSubmitted(false);
           setFormData({
@@ -230,7 +229,7 @@ export default function InventoryForm() {
           {/* Inventory Items */}
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
-              Inventory Counts
+              Inventory Counts ({INVENTORY_ITEMS.length} items)
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {INVENTORY_ITEMS.map((item) => (
