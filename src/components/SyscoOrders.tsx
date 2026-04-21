@@ -27,7 +27,22 @@ export default function SyscoOrders() {
       const response = await fetch('/api/sysco-orders');
       const data = await response.json();
       if (data.success) {
-        setOrders(data.orders);
+        // Filter out orders with missing data and remove duplicates
+        const validOrders = data.orders.filter((order: SyscoOrder) => 
+          order.orderNumber && order.orderNumber !== 'undefined' && order.orderNumber !== ''
+        );
+        
+        // Remove duplicates by order number (keep most recent)
+        const seenOrderNumbers = new Set<string>();
+        const uniqueOrders = validOrders.filter((order: SyscoOrder) => {
+          if (seenOrderNumbers.has(order.orderNumber)) {
+            return false;
+          }
+          seenOrderNumbers.add(order.orderNumber);
+          return true;
+        });
+        
+        setOrders(uniqueOrders);
       }
     } catch (err) {
       console.error('Failed to fetch orders:', err);
@@ -97,7 +112,7 @@ export default function SyscoOrders() {
 
   // Format date safely
   const formatDate = (dateString: string) => {
-    if (!dateString || dateString === 'Invalid Date') return 'N/A';
+    if (!dateString || dateString === 'Invalid Date' || dateString === 'null') return 'N/A';
     try {
       const date = new Date(dateString);
       if (isNaN(date.getTime())) return 'N/A';
@@ -161,6 +176,7 @@ export default function SyscoOrders() {
           <CardContent className="p-8 text-center">
             <Package className="w-12 h-12 text-slate-300 mx-auto mb-3" />
             <p className="text-slate-500">No orders found</p>
+            <p className="text-sm text-slate-400 mt-2">Orders will appear here when confirmed via email</p>
           </CardContent>
         </Card>
       ) : (
@@ -176,7 +192,7 @@ export default function SyscoOrders() {
                     <CardTitle className="text-lg font-semibold text-slate-800">
                       {order.location}
                     </CardTitle>
-                    <p className="text-sm text-slate-500">
+                    <p className="text-sm text-slate-500 font-mono">
                       Order #{order.orderNumber}
                     </p>
                   </div>

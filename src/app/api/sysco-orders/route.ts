@@ -34,6 +34,27 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
+    // Check for duplicate order number
+    const { data: existingOrder, error: checkError } = await supabase
+      .from("sysco_orders")
+      .select("id, order_number")
+      .eq("order_number", body.orderNumber)
+      .maybeSingle();
+    
+    if (checkError) {
+      console.error("Duplicate check error:", checkError);
+    }
+    
+    // If order already exists, skip
+    if (existingOrder) {
+      console.log(`Order #${body.orderNumber} already exists, skipping`);
+      return NextResponse.json({
+        success: true,
+        order: existingOrder,
+        message: "Order already exists",
+      });
+    }
+    
     const { data, error } = await supabase
       .from("sysco_orders")
       .insert({
