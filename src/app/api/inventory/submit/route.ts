@@ -21,8 +21,9 @@ export async function POST(request: Request) {
       .insert({
         employee_name: body.name,
         location: body.location,
-        submission_date: body.date,
+        date: body.date,
         items: body.items || {},
+        notes: body.notes || "",
         submitted_at: new Date().toISOString(),
       })
       .select()

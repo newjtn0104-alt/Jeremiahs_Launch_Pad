@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Loader2, CheckCircle, Package } from "lucide-react";
 
 interface FormData {
@@ -12,6 +13,7 @@ interface FormData {
   location: string;
   date: string;
   items: Record<string, string>;
+  notes: string;
 }
 
 const INVENTORY_ITEMS = [
@@ -87,6 +89,7 @@ export default function InventoryForm() {
     location: "",
     date: new Date().toISOString().split("T")[0],
     items: {},
+    notes: "",
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -139,6 +142,7 @@ export default function InventoryForm() {
             location: "",
             date: new Date().toISOString().split("T")[0],
             items: {},
+            notes: "",
           });
         }, 3000);
       } else {
@@ -259,6 +263,24 @@ export default function InventoryForm() {
                 </div>
               ))}
             </div>
+          </div>
+
+          {/* Notes Section */}
+          <div className="pt-4 border-t border-slate-200">
+            <Label htmlFor="notes" className="text-slate-700 font-medium text-lg">
+              Additional Notes
+            </Label>
+            <p className="text-sm text-slate-500 mb-2">
+              Add any comments, issues, or special instructions
+            </p>
+            <Textarea
+              id="notes"
+              value={formData.notes}
+              onChange={(e) => handleInputChange("notes", e.target.value)}
+              placeholder="Enter any additional notes here..."
+              rows={4}
+              className="mt-1"
+            />
           </div>
 
           {/* Submit Button */}
