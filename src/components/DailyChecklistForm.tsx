@@ -41,6 +41,39 @@ const CHECKLIST_ITEMS = [
   { id: "chocolate_mix_case", label: "Chocolate Mix Case", requiresPhoto: false },
 ];
 
+// Compress image before storing
+const compressImage = (base64String: string, maxWidth = 800): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.src = base64String;
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        reject(new Error("Could not get canvas context"));
+        return;
+      }
+
+      let width = img.width;
+      let height = img.height;
+
+      if (width > maxWidth) {
+        height = (height * maxWidth) / width;
+        width = maxWidth;
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Compress to JPEG with 0.7 quality
+      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+      resolve(compressed);
+    };
+    img.onerror = reject;
+  });
+};
+
 export default function DailyChecklistForm() {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -75,23 +108,31 @@ export default function DailyChecklistForm() {
     }));
   };
 
-  const handlePhotoCapture = (itemId: string, file: File) => {
+  const handlePhotoCapture = async (itemId: string, file: File) => {
     const reader = new FileReader();
-    reader.onloadend = () => {
-      setFormData((prev) => ({
-        ...prev,
-        items: {
-          ...prev.items,
-          [itemId]: {
-            ...prev.items[itemId],
-            id: itemId,
-            label: CHECKLIST_ITEMS.find(i => i.id === itemId)?.label || itemId,
-            value: prev.items[itemId]?.value || "",
-            requiresPhoto: true,
-            photo: reader.result as string,
+    reader.onloadend = async () => {
+      try {
+        // Compress the image
+        const compressed = await compressImage(reader.result as string);
+        
+        setFormData((prev) => ({
+          ...prev,
+          items: {
+            ...prev.items,
+            [itemId]: {
+              ...prev.items[itemId],
+              id: itemId,
+              label: CHECKLIST_ITEMS.find(i => i.id === itemId)?.label || itemId,
+              value: prev.items[itemId]?.value || "",
+              requiresPhoto: true,
+              photo: compressed,
+            },
           },
-        },
-      }));
+        }));
+      } catch (error) {
+        console.error("Error compressing image:", error);
+        alert("Error processing photo. Please try again.");
+      }
     };
     reader.readAsDataURL(file);
   };
@@ -125,6 +166,8 @@ export default function DailyChecklistForm() {
         body: JSON.stringify(submitData),
       });
 
+      const responseData = await response.json().catch(() => ({ error: "Unknown error" }));
+
       if (response.ok) {
         setSubmitted(true);
         setTimeout(() => {
@@ -137,8 +180,7 @@ export default function DailyChecklistForm() {
           });
         }, 3000);
       } else {
-        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
-        alert("Failed to submit: " + (errorData.error || "Please try again."));
+        alert("Failed to submit: " + (responseData.error || responseData.details || "Please try again."));
       }
     } catch (error) {
       console.error("Submit error:", error);

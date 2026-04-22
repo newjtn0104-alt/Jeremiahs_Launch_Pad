@@ -4,7 +4,12 @@ import { supabase } from "@/lib/supabase";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log("Received checklist submission:", body);
+    console.log("Received checklist submission:", {
+      name: body.name,
+      location: body.location,
+      date: body.date,
+      itemCount: Object.keys(body.items || {}).length,
+    });
 
     // Validate required fields
     if (!body.name || !body.location || !body.date) {
@@ -12,6 +17,16 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
+      );
+    }
+
+    // Check payload size (Vercel has 4.5MB limit)
+    const payloadSize = JSON.stringify(body).length;
+    console.log("Payload size:", payloadSize, "bytes");
+    if (payloadSize > 4000000) { // 4MB limit
+      return NextResponse.json(
+        { success: false, error: "Payload too large. Please reduce photo sizes." },
+        { status: 413 }
       );
     }
 
