@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, Download } from "lucide-react";
+import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, Download, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -12,6 +12,7 @@ interface Submission {
   location: string;
   date: string;
   items: Record<string, string>;
+  notes?: string;
   submittedAt: string;
 }
 
@@ -100,12 +101,12 @@ export default function Inventory() {
 
   // Export all submissions to CSV
   const exportAllToCSV = () => {
-    const headers = ["Date", "Employee", "Location", "Item Name", "Count"];
+    const headers = ["Date", "Employee", "Location", "Item Name", "Count", "Notes"];
     const rows: string[][] = [];
 
     submissions.forEach((sub) => {
       Object.entries(sub.items).forEach(([itemName, count]) => {
-        rows.push([sub.date, sub.employeeName, sub.location, itemName, count]);
+        rows.push([sub.date, sub.employeeName, sub.location, itemName, count, sub.notes || ""]);
       });
     });
 
@@ -192,6 +193,7 @@ export default function Inventory() {
       {submissions.map((submission) => {
         const isExpanded = expandedSubmissions.has(submission.id);
         const itemCount = Object.keys(submission.items).length;
+        const hasNotes = submission.notes && submission.notes.trim().length > 0;
 
         return (
           <Card key={submission.id} className="border-slate-200 shadow-md bg-white overflow-hidden">
@@ -205,6 +207,12 @@ export default function Inventory() {
                     <h3 className="font-semibold text-slate-900">{submission.employeeName}</h3>
                     <p className="text-sm text-slate-500">
                       {submission.location} • {formatDate(submission.date)} • {itemCount} items
+                      {hasNotes && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-blue-600">
+                          <FileText className="w-3 h-3" />
+                          Has notes
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -228,6 +236,17 @@ export default function Inventory() {
             {isExpanded && (
               <div className="border-t border-slate-200 bg-slate-50">
                 <div className="p-4">
+                  {/* Notes Section */}
+                  {hasNotes && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-medium text-blue-900 mb-1 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Notes
+                      </h4>
+                      <p className="text-blue-800 text-sm whitespace-pre-wrap">{submission.notes}</p>
+                    </div>
+                  )}
+                  
                   <h4 className="font-medium text-slate-700 mb-3">Inventory Items</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                     {Object.entries(submission.items).map(([itemName, count]) => (

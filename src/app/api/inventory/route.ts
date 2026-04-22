@@ -55,6 +55,7 @@ export async function GET(request: Request) {
           items: Object.fromEntries(
             Array.from(itemsMap.values()).map((item: any) => [item.item_name, item.count])
           ),
+          notes: sub.notes || "",
           submittedAt: sub.created_at,
           isLegacy: true,
         };
@@ -66,6 +67,7 @@ export async function GET(request: Request) {
           location: sub.location,
           date: sub.date,
           items: sub.items || {},
+          notes: sub.notes || "",
           submittedAt: sub.submitted_at,
           isLegacy: false,
         };
