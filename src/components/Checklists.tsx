@@ -219,21 +219,20 @@ export default function Checklists() {
               <div className="border-t border-slate-200 bg-slate-50">
                 <div className="p-4">
                   <h4 className="font-medium text-slate-700 mb-3">Checklist Items</h4>
-                  <div className="space-y-3">
+                  {/* 2 Column Grid Layout */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     {Object.entries(checklist.items).map(([itemId, item]) => (
                       <div key={itemId} className="bg-white p-3 rounded-lg border border-slate-200">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-medium text-slate-700">{item.label}</p>
-                          {item.requiresValue && item.value && (
-                            <span className="text-lg font-semibold text-slate-900">{item.value}</span>
-                          )}
-                        </div>
+                        <p className="text-sm font-medium text-slate-700 mb-2">{item.label}</p>
+                        {item.requiresValue && item.value && (
+                          <p className="text-lg font-semibold text-slate-900 mb-2">{item.value}</p>
+                        )}
                         {item.photo && (
-                          <div className="mt-2">
+                          <div>
                             <img
                               src={item.photo}
                               alt={`${item.label} photo`}
-                              className="max-w-xs max-h-32 rounded-lg border border-slate-200 cursor-pointer hover:opacity-80"
+                              className="w-full h-32 object-cover rounded-lg border border-slate-200 cursor-pointer hover:opacity-80"
                               onClick={() => setSelectedPhoto(item.photo!)}
                             />
                           </div>
@@ -250,4 +249,3 @@ export default function Checklists() {
     </div>
   );
 }
-// Checklist view updated Wed Apr 22 00:38:39 EDT 2026
