@@ -274,83 +274,67 @@ export default function DailyChecklistForm() {
             </div>
           </div>
 
-          {/* Checklist Items */}
+          {/* Checklist Items - 2 Column Grid */}
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               Checklist Items ({CHECKLIST_ITEMS.length} items)
             </h3>
-            <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {CHECKLIST_ITEMS.map((item) => {
                 const itemData = formData.items[item.id];
                 const hasPhoto = itemData?.photo;
 
                 return (
                   <div key={item.id} className="p-4 bg-slate-50 rounded-lg">
-                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                      <div className="flex-1">
-                        <Label
-                          className="text-slate-700 font-medium flex items-center gap-2"
+                    <Label className="text-slate-700 font-medium text-sm mb-2 block">
+                      {item.label}
+                    </Label>
+                    
+                    {/* Value input for vanilla/chocolate */}
+                    {item.requiresValue && (
+                      <Input
+                        type="text"
+                        value={itemData?.value || ""}
+                        onChange={(e) => handleItemChange(item.id, e.target.value)}
+                        placeholder="Enter value"
+                        required
+                        className="w-full"
+                      />
+                    )}
+                    
+                    {/* Photo button for all other items */}
+                    {item.requiresPhoto && (
+                      <div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          ref={(el) => { fileInputRefs.current[item.id] = el; }}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handlePhotoCapture(item.id, file);
+                          }}
+                          className="hidden"
+                        />
+                        <Button
+                          type="button"
+                          variant={hasPhoto ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => fileInputRefs.current[item.id]?.click()}
+                          className={`w-full ${hasPhoto ? "bg-green-600 hover:bg-green-700" : ""}`}
                         >
-                          {item.label}
-                          {item.requiresPhoto && (
-                            <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
-                              Photo Required
-                            </span>
-                          )}
-                          {item.requiresValue && (
-                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
-                              Value Required
-                            </span>
-                          )}
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        {/* Show value input only for items that require value */}
-                        {item.requiresValue && (
-                          <Input
-                            type="text"
-                            value={itemData?.value || ""}
-                            onChange={(e) => handleItemChange(item.id, e.target.value)}
-                            placeholder="Enter value"
-                            required
-                            className="w-32"
-                          />
-                        )}
-                        {/* Show photo button only for items that require photo */}
-                        {item.requiresPhoto && (
-                          <div className="flex items-center gap-2">
-                            <input
-                              type="file"
-                              accept="image/*"
-                              capture="environment"
-                              ref={(el) => { fileInputRefs.current[item.id] = el; }}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handlePhotoCapture(item.id, file);
-                              }}
-                              className="hidden"
+                          <Camera className="w-4 h-4 mr-2" />
+                          {hasPhoto ? "Photo Added" : "Add Photo"}
+                        </Button>
+                        {hasPhoto && (
+                          <div className="mt-2">
+                            <img
+                              src={itemData.photo!}
+                              alt={`${item.label} photo`}
+                              className="w-full h-32 object-cover rounded-lg border border-slate-200"
                             />
-                            <Button
-                              type="button"
-                              variant={hasPhoto ? "default" : "outline"}
-                              size="sm"
-                              onClick={() => fileInputRefs.current[item.id]?.click()}
-                              className={hasPhoto ? "bg-green-600 hover:bg-green-700" : ""}
-                            >
-                              <Camera className="w-4 h-4 mr-1" />
-                              {hasPhoto ? "Photo Added" : "Add Photo"}
-                            </Button>
                           </div>
                         )}
-                      </div>
-                    </div>
-                    {hasPhoto && (
-                      <div className="mt-3">
-                        <img
-                          src={itemData.photo!}
-                          alt={`${item.label} photo`}
-                          className="max-w-xs max-h-48 rounded-lg border border-slate-200"
-                        />
                       </div>
                     )}
                   </div>
