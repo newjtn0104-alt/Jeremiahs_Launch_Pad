@@ -4,16 +4,21 @@ import { supabase } from "@/lib/supabase";
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    console.log("Received checklist submission:", {
+    
+    // Log detailed info
+    const payloadSize = JSON.stringify(body).length;
+    const photoCount = Object.values(body.items || {}).filter((item: any) => item.photo).length;
+    console.log("Checklist submission:", {
       name: body.name,
       location: body.location,
       date: body.date,
       itemCount: Object.keys(body.items || {}).length,
+      photoCount,
+      payloadSizeKB: Math.round(payloadSize / 1024),
     });
 
     // Validate required fields
     if (!body.name || !body.location || !body.date) {
-      console.log("Missing required fields");
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
@@ -21,11 +26,13 @@ export async function POST(request: Request) {
     }
 
     // Check payload size (Vercel has 4.5MB limit)
-    const payloadSize = JSON.stringify(body).length;
-    console.log("Payload size:", payloadSize, "bytes");
-    if (payloadSize > 4000000) { // 4MB limit
+    if (payloadSize > 4500000) {
+      console.error("Payload too large:", payloadSize, "bytes");
       return NextResponse.json(
-        { success: false, error: "Payload too large. Please reduce photo sizes." },
+        { 
+          success: false, 
+          error: `Payload too large (${Math.round(payloadSize/1024)}KB). Maximum is 4.5MB. Please retake photos with lower quality.` 
+        },
         { status: 413 }
       );
     }
@@ -51,7 +58,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log("Successfully saved checklist:", data);
+    console.log("Successfully saved checklist:", data.id);
     return NextResponse.json({
       success: true,
       submission: data,
