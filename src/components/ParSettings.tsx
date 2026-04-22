@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Slider, Package, Save, AlertCircle, Loader2, CheckCircle } from "lucide-react";
+import { Settings, Package, Save, AlertCircle, Loader2, CheckCircle } from "lucide-react";
 
 const INVENTORY_ITEMS = [
   { id: "small_lid", label: "SMALL/Tadpole LID 7oz Dome" },
@@ -164,7 +164,7 @@ export default function ParSettings() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-amber-100">
-                <Slider className="w-6 h-6 text-amber-600" />
+                <Settings className="w-6 h-6 text-amber-600" />
               </div>
               <div>
                 <CardTitle className="text-xl font-bold text-slate-900">Par Settings</CardTitle>

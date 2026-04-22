@@ -25,7 +25,7 @@ import {
   PlusCircle,
   List,
   ClipboardCheck,
-  Slider
+  Settings
 } from "lucide-react";
 import WhosWorking from "./WhosWorking";
 import TastyTargets from "./TastyTargets";
@@ -89,7 +89,7 @@ export default function LaunchPadMenu() {
       subItems: [
         { id: "view-inventory" as InventorySubItem, label: "View Inventory", icon: List },
         { id: "submit-inventory" as InventorySubItem, label: "Submit Form", icon: PlusCircle },
-        { id: "par-settings" as InventorySubItem, label: "Par Settings", icon: Slider },
+        { id: "par-settings" as InventorySubItem, label: "Par Settings", icon: Settings },
       ]
     },
     { 
