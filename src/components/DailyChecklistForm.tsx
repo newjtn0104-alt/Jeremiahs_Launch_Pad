@@ -13,6 +13,7 @@ interface ChecklistItem {
   value: string;
   photo?: string | null;
   requiresPhoto: boolean;
+  requiresValue: boolean;
 }
 
 interface FormData {
@@ -23,22 +24,22 @@ interface FormData {
 }
 
 const CHECKLIST_ITEMS = [
-  { id: "mango_cooler_temp", label: "Mango Cooler Temp", requiresPhoto: true },
-  { id: "lemon_cooler_temp", label: "Lemon Cooler Temp", requiresPhoto: true },
-  { id: "ipad_1_battery", label: "iPad 1 Battery", requiresPhoto: true },
-  { id: "ipad_2_battery", label: "iPad 2 Battery", requiresPhoto: true },
-  { id: "ipad_3_battery", label: "iPad 3 Battery", requiresPhoto: true },
-  { id: "ipad_olo_battery", label: "iPad OLO Battery", requiresPhoto: true },
-  { id: "customer_ipad_1_battery", label: "Customer iPad 1 Battery", requiresPhoto: true },
-  { id: "customer_ipad_2_battery", label: "Customer iPad 2 Battery", requiresPhoto: true },
-  { id: "customer_ipad_3_battery", label: "Customer iPad 3 Battery", requiresPhoto: true },
-  { id: "money_till", label: "Money Till", requiresPhoto: true },
-  { id: "icm_1_timer", label: "ICM 1 Timer", requiresPhoto: true },
-  { id: "icm_2_timer", label: "ICM 2 Timer", requiresPhoto: true },
-  { id: "blast_temp", label: "Blast Temp", requiresPhoto: true },
-  { id: "refrigerator_temp", label: "Refrigerator Temp", requiresPhoto: true },
-  { id: "vanilla_mix_case", label: "Vanilla Mix Case", requiresPhoto: false },
-  { id: "chocolate_mix_case", label: "Chocolate Mix Case", requiresPhoto: false },
+  { id: "mango_cooler_temp", label: "Mango Cooler Temp", requiresPhoto: true, requiresValue: false },
+  { id: "lemon_cooler_temp", label: "Lemon Cooler Temp", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_1_battery", label: "iPad 1 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_2_battery", label: "iPad 2 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_3_battery", label: "iPad 3 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_olo_battery", label: "iPad OLO Battery", requiresPhoto: true, requiresValue: false },
+  { id: "customer_ipad_1_battery", label: "Customer iPad 1 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "customer_ipad_2_battery", label: "Customer iPad 2 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "customer_ipad_3_battery", label: "Customer iPad 3 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "money_till", label: "Money Till", requiresPhoto: true, requiresValue: false },
+  { id: "icm_1_timer", label: "ICM 1 Timer", requiresPhoto: true, requiresValue: false },
+  { id: "icm_2_timer", label: "ICM 2 Timer", requiresPhoto: true, requiresValue: false },
+  { id: "blast_temp", label: "Blast Temp", requiresPhoto: true, requiresValue: false },
+  { id: "refrigerator_temp", label: "Refrigerator Temp", requiresPhoto: true, requiresValue: false },
+  { id: "vanilla_mix_case", label: "Vanilla Mix Case", requiresPhoto: false, requiresValue: true },
+  { id: "chocolate_mix_case", label: "Chocolate Mix Case", requiresPhoto: false, requiresValue: true },
 ];
 
 // Compress image before storing
@@ -103,6 +104,7 @@ export default function DailyChecklistForm() {
           label: CHECKLIST_ITEMS.find(i => i.id === itemId)?.label || itemId,
           value,
           requiresPhoto: CHECKLIST_ITEMS.find(i => i.id === itemId)?.requiresPhoto || false,
+          requiresValue: CHECKLIST_ITEMS.find(i => i.id === itemId)?.requiresValue || false,
         },
       },
     }));
@@ -123,8 +125,9 @@ export default function DailyChecklistForm() {
               ...prev.items[itemId],
               id: itemId,
               label: CHECKLIST_ITEMS.find(i => i.id === itemId)?.label || itemId,
-              value: prev.items[itemId]?.value || "",
+              value: "",
               requiresPhoto: true,
+              requiresValue: false,
               photo: compressed,
             },
           },
@@ -149,6 +152,7 @@ export default function DailyChecklistForm() {
           label: item.label,
           value: formData.items[item.id]?.value || "",
           requiresPhoto: item.requiresPhoto,
+          requiresValue: item.requiresValue,
           photo: item.requiresPhoto ? (formData.items[item.id]?.photo || null) : null,
         };
       });
@@ -285,7 +289,6 @@ export default function DailyChecklistForm() {
                     <div className="flex flex-col md:flex-row md:items-center gap-4">
                       <div className="flex-1">
                         <Label
-                          htmlFor={item.id}
                           className="text-slate-700 font-medium flex items-center gap-2"
                         >
                           {item.label}
@@ -294,18 +297,26 @@ export default function DailyChecklistForm() {
                               Photo Required
                             </span>
                           )}
+                          {item.requiresValue && (
+                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                              Value Required
+                            </span>
+                          )}
                         </Label>
                       </div>
                       <div className="flex items-center gap-3">
-                        <Input
-                          id={item.id}
-                          type="text"
-                          value={itemData?.value || ""}
-                          onChange={(e) => handleItemChange(item.id, e.target.value)}
-                          placeholder="Enter value"
-                          required
-                          className="w-32"
-                        />
+                        {/* Show value input only for items that require value */}
+                        {item.requiresValue && (
+                          <Input
+                            type="text"
+                            value={itemData?.value || ""}
+                            onChange={(e) => handleItemChange(item.id, e.target.value)}
+                            placeholder="Enter value"
+                            required
+                            className="w-32"
+                          />
+                        )}
+                        {/* Show photo button only for items that require photo */}
                         {item.requiresPhoto && (
                           <div className="flex items-center gap-2">
                             <input
