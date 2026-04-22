@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, Download, FileText } from "lucide-react";
+import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, Download, FileText, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -23,6 +23,7 @@ export default function Inventory() {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [expandedSubmissions, setExpandedSubmissions] = useState<Set<string>>(new Set());
+  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
   const fetchSubmissions = async () => {
     setLoading(true);
@@ -65,8 +66,26 @@ export default function Inventory() {
     });
   };
 
+  const toggleItemChecked = (submissionId: string, itemName: string) => {
+    const itemKey = `${submissionId}-${itemName}`;
+    setCheckedItems((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(itemKey)) {
+        newSet.delete(itemKey);
+      } else {
+        newSet.add(itemKey);
+      }
+      return newSet;
+    });
+  };
+
+  const clearAllChecked = () => {
+    setCheckedItems(new Set());
+  };
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-US", {
+      timeZone: "America/New_York",
       weekday: "short",
       year: "numeric",
       month: "short",
@@ -138,10 +157,18 @@ export default function Inventory() {
                 <p className="text-sm text-slate-500">{submissions.length} submissions found</p>
               </div>
             </div>
-            <Button variant="outline" onClick={fetchSubmissions} disabled={loading}>
-              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
-              Refresh
-            </Button>
+            <div className="flex items-center gap-2">
+              {checkedItems.size > 0 && (
+                <Button variant="outline" size="sm" onClick={clearAllChecked}>
+                  <Check className="w-4 h-4 mr-2" />
+                  Clear {checkedItems.size} checked
+                </Button>
+              )}
+              <Button variant="outline" onClick={fetchSubmissions} disabled={loading}>
+                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+                Refresh
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -249,13 +276,38 @@ export default function Inventory() {
                   
                   <h4 className="font-medium text-slate-700 mb-3">Inventory Items</h4>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(submission.items).map(([itemName, count]) => (
-                      <div key={itemName} className="bg-white p-3 rounded-lg border border-slate-200">
-                        <p className="text-xs text-slate-500 truncate">{itemName}</p>
-                        <p className="text-lg font-semibold text-slate-900">{count}</p>
-                      </div>
-                    ))}
+                    {Object.entries(submission.items).map(([itemName, count]) => {
+                      const itemKey = `${submission.id}-${itemName}`;
+                      const isChecked = checkedItems.has(itemKey);
+                      
+                      return (
+                        <div
+                          key={itemName}
+                          onClick={() => toggleItemChecked(submission.id, itemName)}
+                          className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                            isChecked
+                              ? "bg-green-100 border-green-400 shadow-sm"
+                              : "bg-white border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between">
+                            <p className={`text-xs truncate ${isChecked ? "text-green-700" : "text-slate-500"}`}>
+                              {itemName}
+                            </p>
+                            {isChecked && (
+                              <Check className="w-4 h-4 text-green-600 flex-shrink-0 ml-1" />
+                            )}
+                          </div>
+                          <p className={`text-lg font-semibold ${isChecked ? "text-green-800" : "text-slate-900"}`}>
+                            {count}
+                          </p>
+                        </div>
+                      );
+                    })}
                   </div>
+                  <p className="text-xs text-slate-400 mt-3">
+                    Click items to mark as checked (green)
+                  </p>
                 </div>
               </div>
             )}
