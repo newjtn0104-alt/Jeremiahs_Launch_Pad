@@ -1,206 +1,211 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ClipboardCheck, RefreshCw, Calendar, ChevronDown, ChevronUp, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { 
-  FileText, 
-  Calendar, 
-  Sunrise, 
-  Sunset, 
-  ClipboardCheck,
-  Sparkles,
-  ChevronDown,
-  ChevronUp,
-  Download,
-  ExternalLink
-} from "lucide-react";
+import { Input } from "@/components/ui/input";
 
 interface ChecklistItem {
-  id: string;
-  name: string;
-  filename: string;
-  category: string;
-  icon: React.ReactNode;
-  description?: string;
+  label: string;
+  value: string;
+  requiresPhoto: boolean;
+  requiresValue: boolean;
+  photo?: string | null;
 }
 
-const checklists: ChecklistItem[] = [
-  // Daily Sidework
-  { 
-    id: "monday", 
-    name: "Monday Sidework", 
-    filename: "Monday_sidework.pdf",
-    category: "Daily Sidework",
-    icon: <Calendar className="w-5 h-5" />,
-    description: "Monday cleaning and prep tasks"
-  },
-  { 
-    id: "tuesday", 
-    name: "Tuesday Sidework", 
-    filename: "Tuesday_sidework.pdf",
-    category: "Daily Sidework",
-    icon: <Calendar className="w-5 h-5" />,
-    description: "Tuesday cleaning and prep tasks"
-  },
-  { 
-    id: "wednesday", 
-    name: "Wednesday Sidework", 
-    filename: "Wednesday_sidework.pdf",
-    category: "Daily Sidework",
-    icon: <Calendar className="w-5 h-5" />,
-    description: "Wednesday cleaning and prep tasks"
-  },
-  { 
-    id: "thursday", 
-    name: "Thursday Sidework", 
-    filename: "Thursday_sidework.pdf",
-    category: "Daily Sidework",
-    icon: <Calendar className="w-5 h-5" />,
-    description: "Thursday cleaning and prep tasks"
-  },
-  { 
-    id: "friday", 
-    name: "Friday Sidework", 
-    filename: "Friday_sidework.pdf",
-    category: "Daily Sidework",
-    icon: <Calendar className="w-5 h-5" />,
-    description: "Friday cleaning and prep tasks"
-  },
-  { 
-    id: "saturday", 
-    name: "Saturday Sidework", 
-    filename: "Saturday_Sidework.pdf",
-    category: "Daily Sidework",
-    icon: <Calendar className="w-5 h-5" />,
-    description: "Saturday cleaning and prep tasks"
-  },
-  { 
-    id: "sunday", 
-    name: "Sunday Sidework", 
-    filename: "Sunday_sidework.pdf",
-    category: "Daily Sidework",
-    icon: <Calendar className="w-5 h-5" />,
-    description: "Sunday cleaning and prep tasks"
-  },
-  
-  // Operational Checklists
-  { 
-    id: "opening", 
-    name: "Opening Checklist", 
-    filename: "Opening_Checklist.pdf",
-    category: "Operational",
-    icon: <Sunrise className="w-5 h-5" />,
-    description: "Daily opening procedures and tasks"
-  },
-  { 
-    id: "closing", 
-    name: "Closing Checklist", 
-    filename: "Closing_Checklist.pdf",
-    category: "Operational",
-    icon: <Sunset className="w-5 h-5" />,
-    description: "Daily closing procedures and tasks"
-  },
-  { 
-    id: "gx360", 
-    name: "GX360", 
-    filename: "GX360.pdf",
-    category: "Operational",
-    icon: <ClipboardCheck className="w-5 h-5" />,
-    description: "GX360 quality control checklist"
-  },
-  { 
-    id: "pqcl", 
-    name: "PQCL", 
-    filename: "PQCL.pdf",
-    category: "Operational",
-    icon: <Sparkles className="w-5 h-5" />,
-    description: "Product Quality Control Log"
-  },
-  { 
-    id: "sanitation", 
-    name: "Sanitation Log", 
-    filename: "Sanitation_log.pdf",
-    category: "Operational",
-    icon: <Sparkles className="w-5 h-5" />,
-    description: "Daily sanitation tracking log"
-  },
-];
-
-const categoryIcons: Record<string, React.ReactNode> = {
-  "Daily Sidework": <Calendar className="w-6 h-6" />,
-  "Operational": <ClipboardCheck className="w-6 h-6" />,
-};
+interface Checklist {
+  id: string;
+  employeeName: string;
+  location: string;
+  date: string;
+  items: Record<string, ChecklistItem>;
+  submittedAt: string;
+}
 
 export default function Checklists() {
-  const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(["Daily Sidework", "Operational"]));
+  const [checklists, setChecklists] = useState<Checklist[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [expandedChecklists, setExpandedChecklists] = useState<Set<string>>(new Set());
+  const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
 
-  const toggleCategory = (category: string) => {
-    setExpandedCategories(prev => {
-      const newSet = new Set(prev);
-      if (newSet.has(category)) {
-        newSet.delete(category);
+  const fetchChecklists = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const params = new URLSearchParams();
+      if (dateFrom) params.append("from", dateFrom);
+      if (dateTo) params.append("to", dateTo);
+
+      const response = await fetch(`/api/checklist?${params.toString()}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setChecklists(data.checklists);
       } else {
-        newSet.add(category);
+        setError(data.error || "Failed to fetch checklists");
+      }
+    } catch (err) {
+      setError("Failed to fetch checklists");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchChecklists();
+  }, []);
+
+  const toggleChecklist = (checklistId: string) => {
+    setExpandedChecklists((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(checklistId)) {
+        newSet.delete(checklistId);
+      } else {
+        newSet.add(checklistId);
       }
       return newSet;
     });
   };
 
-  const handleDownload = (checklist: ChecklistItem) => {
-    const link = document.createElement("a");
-    link.href = `/checklists/${checklist.filename}`;
-    link.download = checklist.filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString("en-US", {
+      weekday: "short",
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
   };
 
-  const handleView = (checklist: ChecklistItem) => {
-    window.open(`/checklists/${checklist.filename}`, "_blank");
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
-  const categories = Array.from(new Set(checklists.map(c => c.category)));
+  // Count photos in a checklist
+  const getPhotoCount = (items: Record<string, ChecklistItem>) => {
+    return Object.values(items).filter((item) => item.photo).length;
+  };
 
   return (
     <div className="space-y-6">
+      {/* Photo Modal */}
+      {selectedPhoto && (
+        <div
+          className="fixed inset-0 z-50 bg-black bg-opacity-90 flex items-center justify-center p-4"
+          onClick={() => setSelectedPhoto(null)}
+        >
+          <div className="relative max-w-4xl max-h-full">
+            <img
+              src={selectedPhoto}
+              alt="Checklist photo"
+              className="max-w-full max-h-[90vh] rounded-lg"
+            />
+            <Button
+              variant="outline"
+              className="absolute top-2 right-2 bg-white"
+              onClick={() => setSelectedPhoto(null)}
+            >
+              Close
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Header Card */}
       <Card className="border-slate-200 shadow-md bg-white">
         <CardHeader>
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-100">
-              <FileText className="w-6 h-6 text-indigo-600" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-purple-100">
+                <ClipboardCheck className="w-6 h-6 text-purple-600" />
+              </div>
+              <div>
+                <CardTitle className="text-xl font-bold text-slate-900">Daily Checklists</CardTitle>
+                <p className="text-sm text-slate-500">{checklists.length} submissions found</p>
+              </div>
             </div>
-            <div>
-              <CardTitle className="text-xl font-bold text-slate-900">Operations Checklists</CardTitle>
-              <p className="text-sm text-slate-500">Daily sidework and operational checklists</p>
-            </div>
+            <Button variant="outline" onClick={fetchChecklists} disabled={loading}>
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
+              Refresh
+            </Button>
           </div>
         </CardHeader>
+        <CardContent>
+          {/* Date Filters */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="flex-1">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-2">
+                <Calendar className="w-4 h-4" />
+                From Date
+              </label>
+              <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div className="flex-1">
+              <label className="text-sm font-medium text-slate-700 flex items-center gap-2 mb-2">
+                <Calendar className="w-4 h-4" />
+                To Date
+              </label>
+              <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+            <div className="flex items-end">
+              <Button onClick={fetchChecklists} disabled={loading} className="w-full sm:w-auto">
+                Filter
+              </Button>
+            </div>
+          </div>
+
+          {error && <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-600 mb-4">{error}</div>}
+        </CardContent>
       </Card>
 
-      {categories.map(category => {
-        const categoryChecklists = checklists.filter(c => c.category === category);
-        const isExpanded = expandedCategories.has(category);
-        
+      {/* Checklists List */}
+      {checklists.length === 0 && !loading && !error && (
+        <Card className="border-slate-200 shadow-md bg-white">
+          <CardContent className="p-8 text-center">
+            <ClipboardCheck className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500">No checklists found.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {checklists.map((checklist) => {
+        const isExpanded = expandedChecklists.has(checklist.id);
+        const itemCount = Object.keys(checklist.items).length;
+        const photoCount = getPhotoCount(checklist.items);
+
         return (
-          <Card key={category} className="border-slate-200 shadow-md bg-white overflow-hidden">
-            <CardHeader 
-              className="bg-slate-50 border-b border-slate-200 cursor-pointer hover:bg-slate-100 transition-colors"
-              onClick={() => toggleCategory(category)}
-            >
+          <Card key={checklist.id} className="border-slate-200 shadow-md bg-white overflow-hidden">
+            <div className="p-4 cursor-pointer hover:bg-slate-50" onClick={() => toggleChecklist(checklist.id)}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-indigo-100 rounded-lg">
-                    {categoryIcons[category]}
+                  <div className="p-2 bg-purple-100 rounded-lg">
+                    <ClipboardCheck className="w-5 h-5 text-purple-600" />
                   </div>
-                  <CardTitle className="text-lg font-semibold text-slate-800">
-                    {category}
-                  </CardTitle>
+                  <div>
+                    <h3 className="font-semibold text-slate-900">{checklist.employeeName}</h3>
+                    <p className="text-sm text-slate-500">
+                      {checklist.location} • {formatDate(checklist.date)} • {itemCount} items
+                      {photoCount > 0 && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-green-600">
+                          <Camera className="w-3 h-3" />
+                          {photoCount} photos
+                        </span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-400">
+                      Submitted at {formatTime(checklist.submittedAt)}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className="px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
-                    {categoryChecklists.length} checklists
-                  </span>
+                <div className="flex items-center gap-2">
                   {isExpanded ? (
                     <ChevronUp className="w-5 h-5 text-slate-400" />
                   ) : (
@@ -208,49 +213,36 @@ export default function Checklists() {
                   )}
                 </div>
               </div>
-            </CardHeader>
-            
+            </div>
+
             {isExpanded && (
-              <CardContent className="p-0">
-                <div className="divide-y divide-slate-100">
-                  {categoryChecklists.map(checklist => (
-                    <div 
-                      key={checklist.id} 
-                      className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-slate-100 rounded-lg">
-                          {checklist.icon}
+              <div className="border-t border-slate-200 bg-slate-50">
+                <div className="p-4">
+                  <h4 className="font-medium text-slate-700 mb-3">Checklist Items</h4>
+                  <div className="space-y-3">
+                    {Object.entries(checklist.items).map(([itemId, item]) => (
+                      <div key={itemId} className="bg-white p-3 rounded-lg border border-slate-200">
+                        <div className="flex items-center justify-between">
+                          <p className="text-sm font-medium text-slate-700">{item.label}</p>
+                          {item.requiresValue && item.value && (
+                            <span className="text-lg font-semibold text-slate-900">{item.value}</span>
+                          )}
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-slate-800">{checklist.name}</h3>
-                          <p className="text-sm text-slate-500">{checklist.description}</p>
-                        </div>
+                        {item.photo && (
+                          <div className="mt-2">
+                            <img
+                              src={item.photo}
+                              alt={`${item.label} photo`}
+                              className="max-w-xs max-h-32 rounded-lg border border-slate-200 cursor-pointer hover:opacity-80"
+                              onClick={() => setSelectedPhoto(item.photo!)}
+                            />
+                          </div>
+                        )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDownload(checklist)}
-                          className="flex items-center gap-2"
-                        >
-                          <Download className="w-4 h-4" />
-                          Download
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleView(checklist)}
-                          className="flex items-center gap-2"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          View
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </CardContent>
+              </div>
             )}
           </Card>
         );
