@@ -24,7 +24,8 @@ import {
   Clock,
   PlusCircle,
   List,
-  ClipboardCheck
+  ClipboardCheck,
+  Slider
 } from "lucide-react";
 import WhosWorking from "./WhosWorking";
 import TastyTargets from "./TastyTargets";
@@ -42,12 +43,13 @@ import Checklists from "./Checklists";
 import DailyChecklistForm from "./DailyChecklistForm";
 import SyscoOrders from "./SyscoOrders";
 import LaborVariance from "./LaborVariance";
+import ParSettings from "./ParSettings";
 import NotificationBell from "./NotificationBell";
 
 type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks" | "sysco" | "labor";
 type LaunchPadSubItem = "whos-working" | "tasty-targets" | "froggy-focuses" | "sweet-start";
 type LearningSubItem = "icm-learning";
-type InventorySubItem = "view-inventory" | "submit-inventory";
+type InventorySubItem = "view-inventory" | "submit-inventory" | "par-settings";
 type ChecklistsSubItem = "view-checklists" | "daily-checklist";
 
 export default function LaunchPadMenu() {
@@ -87,6 +89,7 @@ export default function LaunchPadMenu() {
       subItems: [
         { id: "view-inventory" as InventorySubItem, label: "View Inventory", icon: List },
         { id: "submit-inventory" as InventorySubItem, label: "Submit Form", icon: PlusCircle },
+        { id: "par-settings" as InventorySubItem, label: "Par Settings", icon: Slider },
       ]
     },
     { 
@@ -143,6 +146,8 @@ export default function LaunchPadMenu() {
             return <Inventory />;
           case "submit-inventory":
             return <InventoryForm />;
+          case "par-settings":
+            return <ParSettings />;
           default:
             return <Inventory />;
         }
