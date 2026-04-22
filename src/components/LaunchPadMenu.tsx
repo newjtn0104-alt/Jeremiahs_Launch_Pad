@@ -42,6 +42,7 @@ import Checklists from "./Checklists";
 import DailyChecklistForm from "./DailyChecklistForm";
 import SyscoOrders from "./SyscoOrders";
 import LaborVariance from "./LaborVariance";
+import NotificationBell from "./NotificationBell";
 
 type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks" | "sysco" | "labor";
 type LaunchPadSubItem = "whos-working" | "tasty-targets" | "froggy-focuses" | "sweet-start";
@@ -324,14 +325,17 @@ export default function LaunchPadMenu() {
               </div>
               <span className="text-xl font-bold text-slate-900">Jeremiah&apos;s LaunchPad</span>
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="lg:hidden"
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            >
-              {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </Button>
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="lg:hidden"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              >
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </Button>
+            </div>
           </div>
         </div>
       </header>
