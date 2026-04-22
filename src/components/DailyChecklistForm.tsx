@@ -23,27 +23,31 @@ interface FormData {
   items: Record<string, ChecklistItem>;
 }
 
+// REDUCED: Only critical items need photos (5 instead of 14)
 const CHECKLIST_ITEMS = [
   { id: "mango_cooler_temp", label: "Mango Cooler Temp", requiresPhoto: true, requiresValue: false },
   { id: "lemon_cooler_temp", label: "Lemon Cooler Temp", requiresPhoto: true, requiresValue: false },
-  { id: "ipad_1_battery", label: "iPad 1 Battery", requiresPhoto: true, requiresValue: false },
-  { id: "ipad_2_battery", label: "iPad 2 Battery", requiresPhoto: true, requiresValue: false },
-  { id: "ipad_3_battery", label: "iPad 3 Battery", requiresPhoto: true, requiresValue: false },
-  { id: "ipad_olo_battery", label: "iPad OLO Battery", requiresPhoto: true, requiresValue: false },
-  { id: "customer_ipad_1_battery", label: "Customer iPad 1 Battery", requiresPhoto: true, requiresValue: false },
-  { id: "customer_ipad_2_battery", label: "Customer iPad 2 Battery", requiresPhoto: true, requiresValue: false },
-  { id: "customer_ipad_3_battery", label: "Customer iPad 3 Battery", requiresPhoto: true, requiresValue: false },
-  { id: "money_till", label: "Money Till", requiresPhoto: true, requiresValue: false },
-  { id: "icm_1_timer", label: "ICM 1 Timer", requiresPhoto: true, requiresValue: false },
-  { id: "icm_2_timer", label: "ICM 2 Timer", requiresPhoto: true, requiresValue: false },
   { id: "blast_temp", label: "Blast Temp", requiresPhoto: true, requiresValue: false },
   { id: "refrigerator_temp", label: "Refrigerator Temp", requiresPhoto: true, requiresValue: false },
+  { id: "money_till", label: "Money Till", requiresPhoto: true, requiresValue: false },
+  // iPad batteries - value only (no photo)
+  { id: "ipad_1_battery", label: "iPad 1 Battery", requiresPhoto: false, requiresValue: true },
+  { id: "ipad_2_battery", label: "iPad 2 Battery", requiresPhoto: false, requiresValue: true },
+  { id: "ipad_3_battery", label: "iPad 3 Battery", requiresPhoto: false, requiresValue: true },
+  { id: "ipad_olo_battery", label: "iPad OLO Battery", requiresPhoto: false, requiresValue: true },
+  { id: "customer_ipad_1_battery", label: "Customer iPad 1 Battery", requiresPhoto: false, requiresValue: true },
+  { id: "customer_ipad_2_battery", label: "Customer iPad 2 Battery", requiresPhoto: false, requiresValue: true },
+  { id: "customer_ipad_3_battery", label: "Customer iPad 3 Battery", requiresPhoto: false, requiresValue: true },
+  // ICM timers - value only (no photo)
+  { id: "icm_1_timer", label: "ICM 1 Timer", requiresPhoto: false, requiresValue: true },
+  { id: "icm_2_timer", label: "ICM 2 Timer", requiresPhoto: false, requiresValue: true },
+  // Mix cases - value only
   { id: "vanilla_mix_case", label: "Vanilla Mix Case", requiresPhoto: false, requiresValue: true },
   { id: "chocolate_mix_case", label: "Chocolate Mix Case", requiresPhoto: false, requiresValue: true },
 ];
 
-// Compress image before storing - AGGRESSIVE compression for mobile
-const compressImage = (base64String: string, maxWidth = 400, quality = 0.5): Promise<string> => {
+// Compress image before storing
+const compressImage = (base64String: string, maxWidth = 600, quality = 0.6): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.src = base64String;
@@ -58,7 +62,6 @@ const compressImage = (base64String: string, maxWidth = 400, quality = 0.5): Pro
       let width = img.width;
       let height = img.height;
 
-      // Aggressive resizing
       if (width > maxWidth) {
         height = (height * maxWidth) / width;
         width = maxWidth;
@@ -68,10 +71,8 @@ const compressImage = (base64String: string, maxWidth = 400, quality = 0.5): Pro
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Compress to JPEG with lower quality
       const compressed = canvas.toDataURL("image/jpeg", quality);
       
-      // Log size reduction
       const originalSize = Math.round(base64String.length / 1024);
       const compressedSize = Math.round(compressed.length / 1024);
       console.log(`Image compressed: ${originalSize}KB → ${compressedSize}KB`);
@@ -121,8 +122,7 @@ export default function DailyChecklistForm() {
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
-        // Aggressive compression for mobile
-        const compressed = await compressImage(reader.result as string, 400, 0.5);
+        const compressed = await compressImage(reader.result as string, 600, 0.6);
         
         setFormData((prev) => ({
           ...prev,
@@ -152,7 +152,6 @@ export default function DailyChecklistForm() {
     setSubmitting(true);
 
     try {
-      // Prepare all items
       const allItems: Record<string, any> = {};
       CHECKLIST_ITEMS.forEach((item) => {
         allItems[item.id] = {
@@ -169,12 +168,11 @@ export default function DailyChecklistForm() {
         items: allItems,
       };
 
-      // Check payload size before sending
       const payloadSize = JSON.stringify(submitData).length;
       console.log("Submitting payload size:", Math.round(payloadSize / 1024), "KB");
       
       if (payloadSize > 4000000) {
-        alert("Photos are too large. Please retake photos with lower quality.");
+        alert("Photos are too large. Please retake with lower quality.");
         setSubmitting(false);
         return;
       }
@@ -305,9 +303,14 @@ export default function DailyChecklistForm() {
                   <div key={item.id} className="p-4 bg-slate-50 rounded-lg">
                     <Label className="text-slate-700 font-medium text-sm mb-2 block">
                       {item.label}
+                      {item.requiresPhoto && (
+                        <span className="ml-2 text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
+                          Photo
+                        </span>
+                      )}
                     </Label>
                     
-                    {/* Value input for vanilla/chocolate */}
+                    {/* Value input */}
                     {item.requiresValue && (
                       <Input
                         type="text"
@@ -319,7 +322,7 @@ export default function DailyChecklistForm() {
                       />
                     )}
                     
-                    {/* Photo button for all other items */}
+                    {/* Photo button */}
                     {item.requiresPhoto && (
                       <div>
                         <input
