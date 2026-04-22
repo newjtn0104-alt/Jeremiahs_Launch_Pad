@@ -75,6 +75,7 @@ export default function Checklists() {
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-US", {
+      timeZone: "America/New_York",
       weekday: "short",
       year: "numeric",
       month: "short",
@@ -84,6 +85,7 @@ export default function Checklists() {
 
   const formatTime = (dateString: string) => {
     return new Date(dateString).toLocaleString("en-US", {
+      timeZone: "America/New_York",
       hour: "2-digit",
       minute: "2-digit",
     });
