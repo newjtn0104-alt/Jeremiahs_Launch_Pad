@@ -237,3 +237,4 @@ Built by Atlas AI for Jeremiah's Italian Ice
 MIT License - feel free to use and modify!
 # Deployment trigger Tue Apr  7 00:36:45 EDT 2026
 // Redeploy trigger Tue Apr 21 14:44:13 EDT 2026
+# Notes column added
