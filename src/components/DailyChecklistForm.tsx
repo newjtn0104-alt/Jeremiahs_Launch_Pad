@@ -23,31 +23,27 @@ interface FormData {
   items: Record<string, ChecklistItem>;
 }
 
-// REDUCED: Only critical items need photos (5 instead of 14)
 const CHECKLIST_ITEMS = [
   { id: "mango_cooler_temp", label: "Mango Cooler Temp", requiresPhoto: true, requiresValue: false },
   { id: "lemon_cooler_temp", label: "Lemon Cooler Temp", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_1_battery", label: "iPad 1 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_2_battery", label: "iPad 2 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_3_battery", label: "iPad 3 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "ipad_olo_battery", label: "iPad OLO Battery", requiresPhoto: true, requiresValue: false },
+  { id: "customer_ipad_1_battery", label: "Customer iPad 1 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "customer_ipad_2_battery", label: "Customer iPad 2 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "customer_ipad_3_battery", label: "Customer iPad 3 Battery", requiresPhoto: true, requiresValue: false },
+  { id: "money_till", label: "Money Till", requiresPhoto: true, requiresValue: false },
+  { id: "icm_1_timer", label: "ICM 1 Timer", requiresPhoto: true, requiresValue: false },
+  { id: "icm_2_timer", label: "ICM 2 Timer", requiresPhoto: true, requiresValue: false },
   { id: "blast_temp", label: "Blast Temp", requiresPhoto: true, requiresValue: false },
   { id: "refrigerator_temp", label: "Refrigerator Temp", requiresPhoto: true, requiresValue: false },
-  { id: "money_till", label: "Money Till", requiresPhoto: true, requiresValue: false },
-  // iPad batteries - value only (no photo)
-  { id: "ipad_1_battery", label: "iPad 1 Battery", requiresPhoto: false, requiresValue: true },
-  { id: "ipad_2_battery", label: "iPad 2 Battery", requiresPhoto: false, requiresValue: true },
-  { id: "ipad_3_battery", label: "iPad 3 Battery", requiresPhoto: false, requiresValue: true },
-  { id: "ipad_olo_battery", label: "iPad OLO Battery", requiresPhoto: false, requiresValue: true },
-  { id: "customer_ipad_1_battery", label: "Customer iPad 1 Battery", requiresPhoto: false, requiresValue: true },
-  { id: "customer_ipad_2_battery", label: "Customer iPad 2 Battery", requiresPhoto: false, requiresValue: true },
-  { id: "customer_ipad_3_battery", label: "Customer iPad 3 Battery", requiresPhoto: false, requiresValue: true },
-  // ICM timers - value only (no photo)
-  { id: "icm_1_timer", label: "ICM 1 Timer", requiresPhoto: false, requiresValue: true },
-  { id: "icm_2_timer", label: "ICM 2 Timer", requiresPhoto: false, requiresValue: true },
-  // Mix cases - value only
   { id: "vanilla_mix_case", label: "Vanilla Mix Case", requiresPhoto: false, requiresValue: true },
   { id: "chocolate_mix_case", label: "Chocolate Mix Case", requiresPhoto: false, requiresValue: true },
 ];
 
 // Compress image before storing
-const compressImage = (base64String: string, maxWidth = 600, quality = 0.6): Promise<string> => {
+const compressImage = (base64String: string, maxWidth = 800, quality = 0.7): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.src = base64String;
@@ -72,11 +68,6 @@ const compressImage = (base64String: string, maxWidth = 600, quality = 0.6): Pro
       ctx.drawImage(img, 0, 0, width, height);
 
       const compressed = canvas.toDataURL("image/jpeg", quality);
-      
-      const originalSize = Math.round(base64String.length / 1024);
-      const compressedSize = Math.round(compressed.length / 1024);
-      console.log(`Image compressed: ${originalSize}KB → ${compressedSize}KB`);
-      
       resolve(compressed);
     };
     img.onerror = reject;
@@ -122,7 +113,7 @@ export default function DailyChecklistForm() {
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
-        const compressed = await compressImage(reader.result as string, 600, 0.6);
+        const compressed = await compressImage(reader.result as string, 800, 0.7);
         
         setFormData((prev) => ({
           ...prev,
@@ -167,15 +158,6 @@ export default function DailyChecklistForm() {
         ...formData,
         items: allItems,
       };
-
-      const payloadSize = JSON.stringify(submitData).length;
-      console.log("Submitting payload size:", Math.round(payloadSize / 1024), "KB");
-      
-      if (payloadSize > 4000000) {
-        alert("Photos are too large. Please retake with lower quality.");
-        setSubmitting(false);
-        return;
-      }
 
       const response = await fetch("/api/checklist/submit", {
         method: "POST",
@@ -289,72 +271,79 @@ export default function DailyChecklistForm() {
             </div>
           </div>
 
-          {/* Checklist Items - 2 Column Grid */}
+          {/* Checklist Items - Single Column Layout */}
           <div>
             <h3 className="text-lg font-semibold text-slate-900 mb-4">
               Checklist Items ({CHECKLIST_ITEMS.length} items)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-4">
               {CHECKLIST_ITEMS.map((item) => {
                 const itemData = formData.items[item.id];
                 const hasPhoto = itemData?.photo;
 
                 return (
                   <div key={item.id} className="p-4 bg-slate-50 rounded-lg">
-                    <Label className="text-slate-700 font-medium text-sm mb-2 block">
-                      {item.label}
-                      {item.requiresPhoto && (
-                        <span className="ml-2 text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
-                          Photo
-                        </span>
-                      )}
-                    </Label>
-                    
-                    {/* Value input */}
-                    {item.requiresValue && (
-                      <Input
-                        type="text"
-                        value={itemData?.value || ""}
-                        onChange={(e) => handleItemChange(item.id, e.target.value)}
-                        placeholder="Enter value"
-                        required
-                        className="w-full"
-                      />
-                    )}
-                    
-                    {/* Photo button */}
-                    {item.requiresPhoto && (
-                      <div>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          capture="environment"
-                          ref={(el) => { fileInputRefs.current[item.id] = el; }}
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) handlePhotoCapture(item.id, file);
-                          }}
-                          className="hidden"
-                        />
-                        <Button
-                          type="button"
-                          variant={hasPhoto ? "default" : "outline"}
-                          size="sm"
-                          onClick={() => fileInputRefs.current[item.id]?.click()}
-                          className={`w-full ${hasPhoto ? "bg-green-600 hover:bg-green-700" : ""}`}
-                        >
-                          <Camera className="w-4 h-4 mr-2" />
-                          {hasPhoto ? "Photo Added" : "Add Photo"}
-                        </Button>
-                        {hasPhoto && (
-                          <div className="mt-2">
-                            <img
-                              src={itemData.photo!}
-                              alt={`${item.label} photo`}
-                              className="w-full h-32 object-cover rounded-lg border border-slate-200"
+                    <div className="flex flex-col md:flex-row md:items-center gap-4">
+                      <div className="flex-1">
+                        <Label className="text-slate-700 font-medium flex items-center gap-2">
+                          {item.label}
+                          {item.requiresPhoto && (
+                            <span className="text-xs text-amber-600 bg-amber-100 px-2 py-0.5 rounded">
+                              Photo Required
+                            </span>
+                          )}
+                          {item.requiresValue && (
+                            <span className="text-xs text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                              Value Required
+                            </span>
+                          )}
+                        </Label>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        {item.requiresValue && (
+                          <Input
+                            type="text"
+                            value={itemData?.value || ""}
+                            onChange={(e) => handleItemChange(item.id, e.target.value)}
+                            placeholder="Enter value"
+                            required
+                            className="w-32"
+                          />
+                        )}
+                        {item.requiresPhoto && (
+                          <div className="flex items-center gap-2">
+                            <input
+                              type="file"
+                              accept="image/*"
+                              capture="environment"
+                              ref={(el) => { fileInputRefs.current[item.id] = el; }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handlePhotoCapture(item.id, file);
+                              }}
+                              className="hidden"
                             />
+                            <Button
+                              type="button"
+                              variant={hasPhoto ? "default" : "outline"}
+                              size="sm"
+                              onClick={() => fileInputRefs.current[item.id]?.click()}
+                              className={hasPhoto ? "bg-green-600 hover:bg-green-700" : ""}
+                            >
+                              <Camera className="w-4 h-4 mr-1" />
+                              {hasPhoto ? "Photo Added" : "Add Photo"}
+                            </Button>
                           </div>
                         )}
+                      </div>
+                    </div>
+                    {hasPhoto && (
+                      <div className="mt-3">
+                        <img
+                          src={itemData.photo!}
+                          alt={`${item.label} photo`}
+                          className="max-w-xs max-h-48 rounded-lg border border-slate-200"
+                        />
                       </div>
                     )}
                   </div>
