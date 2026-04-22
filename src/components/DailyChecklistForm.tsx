@@ -42,8 +42,8 @@ const CHECKLIST_ITEMS = [
   { id: "chocolate_mix_case", label: "Chocolate Mix Case", requiresPhoto: false, requiresValue: true },
 ];
 
-// Compress image before storing
-const compressImage = (base64String: string, maxWidth = 800): Promise<string> => {
+// Compress image before storing - AGGRESSIVE compression for mobile
+const compressImage = (base64String: string, maxWidth = 400, quality = 0.5): Promise<string> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.src = base64String;
@@ -58,6 +58,7 @@ const compressImage = (base64String: string, maxWidth = 800): Promise<string> =>
       let width = img.width;
       let height = img.height;
 
+      // Aggressive resizing
       if (width > maxWidth) {
         height = (height * maxWidth) / width;
         width = maxWidth;
@@ -67,8 +68,14 @@ const compressImage = (base64String: string, maxWidth = 800): Promise<string> =>
       canvas.height = height;
       ctx.drawImage(img, 0, 0, width, height);
 
-      // Compress to JPEG with 0.7 quality
-      const compressed = canvas.toDataURL("image/jpeg", 0.7);
+      // Compress to JPEG with lower quality
+      const compressed = canvas.toDataURL("image/jpeg", quality);
+      
+      // Log size reduction
+      const originalSize = Math.round(base64String.length / 1024);
+      const compressedSize = Math.round(compressed.length / 1024);
+      console.log(`Image compressed: ${originalSize}KB → ${compressedSize}KB`);
+      
       resolve(compressed);
     };
     img.onerror = reject;
@@ -114,8 +121,8 @@ export default function DailyChecklistForm() {
     const reader = new FileReader();
     reader.onloadend = async () => {
       try {
-        // Compress the image
-        const compressed = await compressImage(reader.result as string);
+        // Aggressive compression for mobile
+        const compressed = await compressImage(reader.result as string, 400, 0.5);
         
         setFormData((prev) => ({
           ...prev,
@@ -161,6 +168,16 @@ export default function DailyChecklistForm() {
         ...formData,
         items: allItems,
       };
+
+      // Check payload size before sending
+      const payloadSize = JSON.stringify(submitData).length;
+      console.log("Submitting payload size:", Math.round(payloadSize / 1024), "KB");
+      
+      if (payloadSize > 4000000) {
+        alert("Photos are too large. Please retake photos with lower quality.");
+        setSubmitting(false);
+        return;
+      }
 
       const response = await fetch("/api/checklist/submit", {
         method: "POST",
