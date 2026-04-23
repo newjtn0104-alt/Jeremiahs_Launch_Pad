@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, Download, FileText, Check } from "lucide-react";
+import { Package, RefreshCw, Calendar, ChevronDown, ChevronUp, Download, FileText, Check, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -16,8 +16,13 @@ interface Submission {
   submittedAt: string;
 }
 
+interface ParSettings {
+  [itemId: string]: number;
+}
+
 export default function Inventory() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
+  const [parSettings, setParSettings] = useState<ParSettings>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dateFrom, setDateFrom] = useState("");
@@ -50,8 +55,26 @@ export default function Inventory() {
     }
   };
 
+  const fetchParSettings = async () => {
+    try {
+      const response = await fetch("/api/par-settings");
+      const data = await response.json();
+      
+      if (data.success) {
+        const settingsMap: ParSettings = {};
+        data.settings.forEach((setting: any) => {
+          settingsMap[setting.item_id] = setting.par_level;
+        });
+        setParSettings(settingsMap);
+      }
+    } catch (err) {
+      console.error("Error fetching par settings:", err);
+    }
+  };
+
   useEffect(() => {
     fetchSubmissions();
+    fetchParSettings();
   }, []);
 
   const toggleSubmission = (submissionId: string) => {
@@ -93,17 +116,37 @@ export default function Inventory() {
     });
   };
 
+  // Check if item is below par
+  const isBelowPar = (itemName: string, count: string): boolean => {
+    const parLevel = parSettings[itemName] || 0;
+    const itemCount = parseInt(count) || 0;
+    return parLevel > 0 && itemCount < parLevel;
+  };
+
+  // Count items below par for a submission
+  const countBelowPar = (submission: Submission): number => {
+    return Object.entries(submission.items).filter(([itemName, count]) => 
+      isBelowPar(itemName, count)
+    ).length;
+  };
+
   // Export single submission to CSV
   const exportSubmissionToCSV = (submission: Submission, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
 
-    const headers = ["Item Name", "Count"];
-    const rows = Object.entries(submission.items).map(([itemName, count]) => [
-      `"${itemName}"`,
-      count,
-    ]);
+    const headers = ["Item Name", "Count", "Par Level", "Status"];
+    const rows = Object.entries(submission.items).map(([itemName, count]) => {
+      const parLevel = parSettings[itemName] || 0;
+      const belowPar = isBelowPar(itemName, count);
+      return [
+        `"${itemName}"`,
+        count,
+        parLevel.toString(),
+        belowPar ? "BUY 1" : "OK"
+      ];
+    });
 
     const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
 
@@ -120,12 +163,23 @@ export default function Inventory() {
 
   // Export all submissions to CSV
   const exportAllToCSV = () => {
-    const headers = ["Date", "Employee", "Location", "Item Name", "Count", "Notes"];
+    const headers = ["Date", "Employee", "Location", "Item Name", "Count", "Par Level", "Status", "Notes"];
     const rows: string[][] = [];
 
     submissions.forEach((sub) => {
       Object.entries(sub.items).forEach(([itemName, count]) => {
-        rows.push([sub.date, sub.employeeName, sub.location, itemName, count, sub.notes || ""]);
+        const parLevel = parSettings[itemName] || 0;
+        const belowPar = isBelowPar(itemName, count);
+        rows.push([
+          sub.date, 
+          sub.employeeName, 
+          sub.location, 
+          itemName, 
+          count, 
+          parLevel.toString(),
+          belowPar ? "BUY 1" : "OK",
+          sub.notes || ""
+        ]);
       });
     });
 
@@ -221,6 +275,7 @@ export default function Inventory() {
         const isExpanded = expandedSubmissions.has(submission.id);
         const itemCount = Object.keys(submission.items).length;
         const hasNotes = submission.notes && submission.notes.trim().length > 0;
+        const belowParCount = countBelowPar(submission);
 
         return (
           <Card key={submission.id} className="border-slate-200 shadow-md bg-white overflow-hidden">
@@ -238,6 +293,12 @@ export default function Inventory() {
                         <span className="ml-2 inline-flex items-center gap-1 text-blue-600">
                           <FileText className="w-3 h-3" />
                           Has notes
+                        </span>
+                      )}
+                      {belowParCount > 0 && (
+                        <span className="ml-2 inline-flex items-center gap-1 text-red-600 font-medium">
+                          <AlertTriangle className="w-3 h-3" />
+                          {belowParCount} below par
                         </span>
                       )}
                     </p>
@@ -279,6 +340,8 @@ export default function Inventory() {
                     {Object.entries(submission.items).map(([itemName, count]) => {
                       const itemKey = `${submission.id}-${itemName}`;
                       const isChecked = checkedItems.has(itemKey);
+                      const belowPar = isBelowPar(itemName, count);
+                      const parLevel = parSettings[itemName] || 0;
                       
                       return (
                         <div
@@ -287,26 +350,36 @@ export default function Inventory() {
                           className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
                             isChecked
                               ? "bg-green-100 border-green-400 shadow-sm"
+                              : belowPar
+                              ? "bg-red-50 border-red-300 shadow-sm"
                               : "bg-white border-slate-200 hover:border-slate-300"
                           }`}
                         >
                           <div className="flex items-start justify-between">
-                            <p className={`text-xs truncate ${isChecked ? "text-green-700" : "text-slate-500"}`}>
+                            <p className={`text-xs truncate ${isChecked ? "text-green-700" : belowPar ? "text-red-700" : "text-slate-500"}`}>
                               {itemName}
                             </p>
                             {isChecked && (
                               <Check className="w-4 h-4 text-green-600 flex-shrink-0 ml-1" />
                             )}
+                            {belowPar && !isChecked && (
+                              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 ml-1" />
+                            )}
                           </div>
-                          <p className={`text-lg font-semibold ${isChecked ? "text-green-800" : "text-slate-900"}`}>
+                          <p className={`text-lg font-semibold ${isChecked ? "text-green-800" : belowPar ? "text-red-800" : "text-slate-900"}`}>
                             {count}
                           </p>
+                          {belowPar && (
+                            <p className="text-xs text-red-600 font-medium mt-1">
+                              BUY 1 (par: {parLevel})
+                            </p>
+                          )}
                         </div>
                       );
                     })}
                   </div>
                   <p className="text-xs text-slate-400 mt-3">
-                    Click items to mark as checked (green)
+                    Click items to mark as checked (green). Red items are below par level.
                   </p>
                 </div>
               </div>
