@@ -132,11 +132,13 @@ export default function DailyScheduleView({
 
   // Resize handlers
   const handleResizeStart = (e: React.MouseEvent, shift: Shift, edge: 'start' | 'end') => {
-    e.stopPropagation();
     e.preventDefault();
+    e.stopPropagation();
+    
     setResizingShift({ shift, edge });
     
     const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
       const newTime = getTimeFromMousePosition(moveEvent.clientX);
       if (newTime) {
         setPreviewTime(newTime);
@@ -144,7 +146,9 @@ export default function DailyScheduleView({
     };
 
     const handleMouseUp = async (upEvent: MouseEvent) => {
+      upEvent.preventDefault();
       const finalTime = getTimeFromMousePosition(upEvent.clientX);
+      
       if (finalTime && resizingShift) {
         const updates: Partial<Shift> = {};
         if (resizingShift.edge === 'start') {
@@ -184,6 +188,11 @@ export default function DailyScheduleView({
 
   // Drag handlers for moving between employees
   const handleDragStart = (e: React.DragEvent, shift: Shift) => {
+    // Don't start drag if we're resizing
+    if (resizingShift) {
+      e.preventDefault();
+      return;
+    }
     setDraggedShift(shift);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -246,6 +255,8 @@ export default function DailyScheduleView({
   };
 
   const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
+    // Don't trigger click if we were resizing
+    if (resizingShift) return;
     e.stopPropagation();
     if (onEditShift) {
       onEditShift(shift);
@@ -364,41 +375,43 @@ export default function DailyScheduleView({
                     {empShifts.map((shift) => (
                       <div
                         key={shift.id}
-                        draggable
+                        draggable={!resizingShift}
                         onDragStart={(e) => handleDragStart(e, shift)}
                         onClick={(e) => handleShiftClick(e, shift)}
-                        className={`absolute top-2 bottom-2 rounded-md text-xs cursor-move group/shift overflow-hidden ${
+                        className={`absolute top-2 bottom-2 rounded-md text-xs group/shift overflow-hidden select-none ${
                           shift.status === "needs_cover"
                             ? "bg-red-100 text-red-700 border border-red-200"
                             : shift.status === "covered"
                             ? "bg-green-100 text-green-700 border border-green-200"
                             : "bg-blue-100 text-blue-700 border border-blue-200"
-                        } ${draggedShift?.id === shift.id ? "opacity-50" : ""}`}
+                        } ${draggedShift?.id === shift.id ? "opacity-50" : ""} ${resizingShift?.shift.id === shift.id ? "z-50" : ""}`}
                         style={getShiftStyle(shift)}
                         title={`${formatTime(shift.start_time)} - ${formatTime(shift.end_time)} (${calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs)`}
                       >
-                        {/* Resize handles */}
+                        {/* Resize handles - always visible for easier access */}
                         <div
-                          className="absolute left-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-blue-400/50 flex items-center justify-center opacity-0 group-hover/shift:opacity-100 transition-opacity"
+                          className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center hover:bg-blue-500/30 z-10"
                           onMouseDown={(e) => handleResizeStart(e, shift, 'start')}
                         >
-                          <div className="w-1 h-4 bg-slate-400 rounded-full" />
+                          <div className="w-1 h-6 bg-slate-500/50 rounded-full" />
                         </div>
                         
                         <div
-                          className="absolute right-0 top-0 bottom-0 w-3 cursor-ew-resize hover:bg-blue-400/50 flex items-center justify-center opacity-0 group-hover/shift:opacity-100 transition-opacity"
+                          className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center hover:bg-blue-500/30 z-10"
                           onMouseDown={(e) => handleResizeStart(e, shift, 'end')}
                         >
-                          <div className="w-1 h-4 bg-slate-400 rounded-full" />
+                          <div className="w-1 h-6 bg-slate-500/50 rounded-full" />
                         </div>
 
-                        {/* Drag handle */}
-                        <div className="absolute left-3 top-1/2 -translate-y-1/2 opacity-0 group-hover/shift:opacity-100 transition-opacity">
-                          <GripVertical className="w-3 h-3 text-slate-400" />
+                        {/* Drag handle - center area */}
+                        <div className="absolute left-4 right-4 top-0 bottom-0 cursor-move flex items-center justify-center">
+                          <div className="opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                            <GripVertical className="w-4 h-4 text-slate-400" />
+                          </div>
                         </div>
 
                         {/* Shift content */}
-                        <div className="pl-6 pr-6 h-full flex flex-col justify-center">
+                        <div className="px-5 h-full flex flex-col justify-center pointer-events-none">
                           <div className="font-medium truncate">
                             {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                           </div>
@@ -408,7 +421,7 @@ export default function DailyScheduleView({
                         </div>
 
                         {/* Edit/Delete buttons */}
-                        <div className="absolute top-1 right-4 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                        <div className="absolute top-1 right-5 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity z-20">
                           <button
                             onClick={(e) => handleShiftClick(e, shift)}
                             className="p-1 bg-white rounded shadow-sm hover:bg-gray-100"
@@ -427,7 +440,7 @@ export default function DailyScheduleView({
 
                         {/* Preview time while resizing */}
                         {resizingShift?.shift.id === shift.id && previewTime && (
-                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-10">
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">
                             {resizingShift.edge === 'start' ? 'Start: ' : 'End: '}{formatTime(previewTime)}
                           </div>
                         )}
@@ -465,7 +478,7 @@ export default function DailyScheduleView({
 
         {/* Tips */}
         <div className="mt-4 text-xs text-slate-400">
-          💡 Tip: Drag edges to resize, drag center to move, click to edit
+          💡 Tip: Drag the left/right edges to resize, drag the center to move, click to edit
         </div>
       </CardContent>
     </Card>
