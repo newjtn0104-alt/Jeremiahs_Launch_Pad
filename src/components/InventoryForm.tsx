@@ -79,6 +79,9 @@ const INVENTORY_ITEMS = [
   { id: "vinyl_gloves", label: "VINYL GLOVES (Plastic Gloves)" },
   { id: "sheila_shine", label: "SHEILA SHINE (Stainless Steel Cleaner)" },
   { id: "wet_wipes", label: "WET WIPES" },
+  { id: "napkins", label: "NAPKINS" },
+  { id: "sample_cups", label: "SAMPLE CUPS" },
+  { id: "sample_spoons", label: "SAMPLE SPOONS" },
 ];
 
 export default function InventoryForm() {
