@@ -16,73 +16,122 @@ interface FormData {
   notes: string;
 }
 
-const INVENTORY_ITEMS = [
-  { id: "small_lid", label: "SMALL/Tadpole LID 7oz Dome" },
-  { id: "medium_lid", label: "MEDIUM LID DNR640" },
-  { id: "large_lid", label: "LARGE LID DNR626" },
-  { id: "tadpole_cup", label: "Tadpole 5 oz Cup" },
-  { id: "small_cups", label: "SMALL CUPS" },
-  { id: "medium_cups", label: "MEDIUM CUPS TP22" },
-  { id: "large_cup", label: "LARGE CUP TP16D" },
-  { id: "half_gallon_container", label: "HALF GALLON CONTAINER" },
-  { id: "half_gallon_lid", label: "HALF GALLON LID" },
-  { id: "quart_container", label: "QUART CONTAINER/LID" },
-  { id: "togo_carrier", label: "TOGO CARRIER" },
-  { id: "green_spoons", label: "GREEN SPOONS" },
-  { id: "register_roll", label: "REGISTER ROLL (Receipt Paper)" },
-  { id: "thank_you_bag", label: "THANK YOU BAG (To Go Bags)" },
-  { id: "translucent_cups", label: "TRANSLUCENT CUPS (Water Cups)" },
-  { id: "souffle_cup", label: "SOUFFLE CUP (Pup Cups)" },
-  { id: "vanilla_mix", label: "Vanilla Mix" },
-  { id: "chocolate_mix", label: "Chocolate Mix" },
-  { id: "mango_base", label: "Ice Italian Base Mango" },
-  { id: "blueberry_base", label: "Ice Italian Base Blueberry" },
-  { id: "chocolate_base", label: "Ice Italian Base Chocolate" },
-  { id: "sea_salt_caramel_base", label: "Ice Italian Base Sea Salt Caramel" },
-  { id: "sugar_free_cherry_base", label: "Ice Italian Base Sugar Free Cherry" },
-  { id: "sugar_free_mango_base", label: "Ice Italian Base Sugar Free Mango" },
-  { id: "black_cherry_base", label: "Ice Italian Base Black Cherry" },
-  { id: "orange_smash_base", label: "Ice Italian Base Orange Smash" },
-  { id: "strawberry_base", label: "Ice Italian Base Strawberry" },
-  { id: "sour_green_apple_base", label: "Ice Italian Base Sour Green Apple" },
-  { id: "mint_scoop_frog_base", label: "Ice Italian Base Mint Scoop Frog" },
-  { id: "strawberry_lemon_base", label: "Ice Italian Base Strawberry Lemon" },
-  { id: "cherry_base", label: "Ice Italian Base Cherry" },
-  { id: "pink_cotton_candy_base", label: "Ice Italian Base Pink Cotton Candy" },
-  { id: "stabilizer_base", label: "Stabilizer Base Water Ice Mix" },
-  { id: "lemon_base", label: "Ice Italian Lemon base" },
-  { id: "crushed_pineapple", label: "Crushed Pineapple" },
-  { id: "pineapple_juice", label: "Pineapple Juice" },
-  { id: "peanut_butter", label: "Peanut Butter" },
-  { id: "goya_coconut", label: "Goya Coconut" },
-  { id: "cookie_butter_crumbs", label: "Cookie Butter Crumbs" },
-  { id: "cake_batter", label: "Cake Batter" },
-  { id: "water_bottles", label: "Water Bottles" },
-  { id: "shredded_coconut", label: "Shredded Coconut" },
-  { id: "sugar", label: "Sugar" },
-  { id: "chocolate_chips", label: "Chocolate Chips" },
-  { id: "oreo_cookies", label: "Oreo Cookies" },
-  { id: "ic_sandwich_wafer", label: "IC Sandwich Wafer" },
-  { id: "nerds", label: "Nerds" },
-  { id: "rainbow_sprinkles", label: "Rainbow Sprinkles" },
-  { id: "black_trash_bag", label: "BLACK TRASH BAG" },
-  { id: "wypall", label: "WYPALL (Blue Rags)" },
-  { id: "paper_towel_roll", label: "PAPER TOWEL ROLL (Brown Napkins)" },
-  { id: "toilet_paper", label: "TOILET PAPER" },
-  { id: "icm_lube", label: "ICM Lube" },
-  { id: "sanitizer", label: "SANITIZER For Sink" },
-  { id: "magic_eraser", label: "MAGIC ERASER" },
-  { id: "handsoap", label: "HANDSOAP" },
-  { id: "dishwashing_detergent", label: "Dishwashing Detergent" },
-  { id: "mop_sink_cleaner", label: "MOP SINK CLEANER" },
-  { id: "glass_cleaner", label: "Glass Cleaner" },
-  { id: "vinyl_gloves", label: "VINYL GLOVES (Plastic Gloves)" },
-  { id: "sheila_shine", label: "SHEILA SHINE (Stainless Steel Cleaner)" },
-  { id: "wet_wipes", label: "WET WIPES" },
-  { id: "napkins", label: "NAPKINS" },
-  { id: "sample_cups", label: "SAMPLE CUPS" },
-  { id: "sample_spoons", label: "SAMPLE SPOONS" },
+// Grouped inventory items
+const INVENTORY_GROUPS = [
+  {
+    name: "Lids",
+    items: [
+      { id: "small_lid", label: "SMALL/Tadpole LID 7oz Dome" },
+      { id: "medium_lid", label: "MEDIUM LID DNR640" },
+      { id: "large_lid", label: "LARGE LID DNR626" },
+      { id: "half_gallon_lid", label: "HALF GALLON LID" },
+    ],
+  },
+  {
+    name: "Cups",
+    items: [
+      { id: "tadpole_cup", label: "Tadpole 5 oz Cup" },
+      { id: "small_cups", label: "SMALL CUPS" },
+      { id: "medium_cups", label: "MEDIUM CUPS TP22" },
+      { id: "large_cup", label: "LARGE CUP TP16D" },
+      { id: "translucent_cups", label: "TRANSLUCENT CUPS (Water Cups)" },
+      { id: "souffle_cup", label: "SOUFFLE CUP (Pup Cups)" },
+      { id: "sample_cups", label: "SAMPLE CUPS" },
+    ],
+  },
+  {
+    name: "Containers & Carriers",
+    items: [
+      { id: "half_gallon_container", label: "HALF GALLON CONTAINER" },
+      { id: "quart_container", label: "QUART CONTAINER/LID" },
+      { id: "togo_carrier", label: "TOGO CARRIER" },
+    ],
+  },
+  {
+    name: "Bases",
+    items: [
+      { id: "vanilla_mix", label: "Vanilla Mix" },
+      { id: "chocolate_mix", label: "Chocolate Mix" },
+      { id: "mango_base", label: "Ice Italian Base Mango" },
+      { id: "blueberry_base", label: "Ice Italian Base Blueberry" },
+      { id: "chocolate_base", label: "Ice Italian Base Chocolate" },
+      { id: "sea_salt_caramel_base", label: "Ice Italian Base Sea Salt Caramel" },
+      { id: "sugar_free_cherry_base", label: "Ice Italian Base Sugar Free Cherry" },
+      { id: "sugar_free_mango_base", label: "Ice Italian Base Sugar Free Mango" },
+      { id: "black_cherry_base", label: "Ice Italian Base Black Cherry" },
+      { id: "orange_smash_base", label: "Ice Italian Base Orange Smash" },
+      { id: "strawberry_base", label: "Ice Italian Base Strawberry" },
+      { id: "sour_green_apple_base", label: "Ice Italian Base Sour Green Apple" },
+      { id: "mint_scoop_frog_base", label: "Ice Italian Base Mint Scoop Frog" },
+      { id: "strawberry_lemon_base", label: "Ice Italian Base Strawberry Lemon" },
+      { id: "cherry_base", label: "Ice Italian Base Cherry" },
+      { id: "pink_cotton_candy_base", label: "Ice Italian Base Pink Cotton Candy" },
+      { id: "stabilizer_base", label: "Stabilizer Base Water Ice Mix" },
+      { id: "lemon_base", label: "Ice Italian Lemon base" },
+    ],
+  },
+  {
+    name: "Toppings & Mix-ins",
+    items: [
+      { id: "crushed_pineapple", label: "Crushed Pineapple" },
+      { id: "pineapple_juice", label: "Pineapple Juice" },
+      { id: "peanut_butter", label: "Peanut Butter" },
+      { id: "goya_coconut", label: "Goya Coconut" },
+      { id: "cookie_butter_crumbs", label: "Cookie Butter Crumbs" },
+      { id: "cake_batter", label: "Cake Batter" },
+      { id: "shredded_coconut", label: "Shredded Coconut" },
+      { id: "sugar", label: "Sugar" },
+      { id: "chocolate_chips", label: "Chocolate Chips" },
+      { id: "oreo_cookies", label: "Oreo Cookies" },
+      { id: "ic_sandwich_wafer", label: "IC Sandwich Wafer" },
+      { id: "nerds", label: "Nerds" },
+      { id: "rainbow_sprinkles", label: "Rainbow Sprinkles" },
+    ],
+  },
+  {
+    name: "Utensils",
+    items: [
+      { id: "green_spoons", label: "GREEN SPOONS" },
+      { id: "sample_spoons", label: "SAMPLE SPOONS" },
+      { id: "vinyl_gloves", label: "VINYL GLOVES (Plastic Gloves)" },
+    ],
+  },
+  {
+    name: "Paper Goods",
+    items: [
+      { id: "register_roll", label: "REGISTER ROLL (Receipt Paper)" },
+      { id: "thank_you_bag", label: "THANK YOU BAG (To Go Bags)" },
+      { id: "paper_towel_roll", label: "PAPER TOWEL ROLL (Brown Napkins)" },
+      { id: "toilet_paper", label: "TOILET PAPER" },
+      { id: "napkins", label: "NAPKINS" },
+      { id: "black_trash_bag", label: "BLACK TRASH BAG" },
+      { id: "wypall", label: "WYPALL (Blue Rags)" },
+    ],
+  },
+  {
+    name: "Cleaning Supplies",
+    items: [
+      { id: "icm_lube", label: "ICM Lube" },
+      { id: "sanitizer", label: "SANITIZER For Sink" },
+      { id: "magic_eraser", label: "MAGIC ERASER" },
+      { id: "handsoap", label: "HANDSOAP" },
+      { id: "dishwashing_detergent", label: "Dishwashing Detergent" },
+      { id: "mop_sink_cleaner", label: "MOP SINK CLEANER" },
+      { id: "glass_cleaner", label: "Glass Cleaner" },
+      { id: "sheila_shine", label: "SHEILA SHINE (Stainless Steel Cleaner)" },
+      { id: "wet_wipes", label: "WET WIPES" },
+    ],
+  },
+  {
+    name: "Other",
+    items: [
+      { id: "water_bottles", label: "Water Bottles" },
+    ],
+  },
 ];
+
+// Flatten for submission
+const ALL_ITEMS = INVENTORY_GROUPS.flatMap(group => group.items);
 
 export default function InventoryForm() {
   const [submitting, setSubmitting] = useState(false);
@@ -119,7 +168,7 @@ export default function InventoryForm() {
     try {
       // Include ALL items, setting 0 for empty ones
       const allItems: Record<string, string> = {};
-      INVENTORY_ITEMS.forEach((item) => {
+      ALL_ITEMS.forEach((item) => {
         allItems[item.id] = formData.items[item.id] || "0";
       });
 
@@ -240,32 +289,42 @@ export default function InventoryForm() {
             </div>
           </div>
 
-          {/* Inventory Items */}
-          <div>
-            <h3 className="text-lg font-semibold text-slate-900 mb-4">
-              Inventory Counts ({INVENTORY_ITEMS.length} items)
+          {/* Inventory Items - Grouped */}
+          <div className="space-y-8">
+            <h3 className="text-lg font-semibold text-slate-900">
+              Inventory Counts ({ALL_ITEMS.length} items)
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {INVENTORY_ITEMS.map((item) => (
-                <div key={item.id} className="space-y-1">
-                  <Label
-                    htmlFor={item.id}
-                    className="text-sm text-slate-700 font-medium"
-                  >
-                    {item.label}
-                  </Label>
-                  <Input
-                    id={item.id}
-                    type="number"
-                    min="0"
-                    value={formData.items[item.id] || ""}
-                    onChange={(e) => handleItemChange(item.id, e.target.value)}
-                    placeholder="0"
-                    className="mt-1"
-                  />
+            
+            {INVENTORY_GROUPS.map((group) => (
+              <div key={group.name} className="border-t border-slate-200 pt-6">
+                <h4 className="text-md font-semibold text-slate-800 mb-4 flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                  {group.name}
+                </h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {group.items.map((item) => (
+                    <div key={item.id} className="space-y-1">
+                      <Label
+                        htmlFor={item.id}
+                        className="text-sm text-slate-700 font-medium"
+                      >
+                        {item.label}
+                      </Label>
+                      <Input
+                        id={item.id}
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={formData.items[item.id] || ""}
+                        onChange={(e) => handleItemChange(item.id, e.target.value)}
+                        placeholder="0"
+                        className="mt-1"
+                      />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </div>
+            ))}
           </div>
 
           {/* Notes Section */}
