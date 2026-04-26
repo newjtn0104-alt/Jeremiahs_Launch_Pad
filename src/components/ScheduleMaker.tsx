@@ -239,50 +239,54 @@ export default function ScheduleMaker({
             </div>
           </div>
 
-          {!propEmployees && (
-            <div className="flex items-center gap-3">
-              <Select value={store} onValueChange={setStore}>
-                <SelectTrigger className="w-[180px]">
-                  <Store className="w-4 h-4 mr-2" />
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Pembroke Pines">Pembroke Pines</SelectItem>
-                  <SelectItem value="Coral Springs">Coral Springs</SelectItem>
-                </SelectContent>
-              </Select>
+          <div className="flex items-center gap-3">
+            {!propEmployees && (
+              <>
+                <Select value={store} onValueChange={setStore}>
+                  <SelectTrigger className="w-[180px]">
+                    <Store className="w-4 h-4 mr-2" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Pembroke Pines">Pembroke Pines</SelectItem>
+                    <SelectItem value="Coral Springs">Coral Springs</SelectItem>
+                  </SelectContent>
+                </Select>
 
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </Button>
-              </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </>
+            )}
 
-              <Button 
-                variant={isSelectMode ? "secondary" : "outline"}
-                onClick={toggleSelectMode}
-              >
-                {isSelectMode ? (
-                  <>
-                    <X className="w-4 h-4 mr-2" />
-                    Cancel
-                  </>
-                ) : (
-                  "Select Multiple"
-                )}
-              </Button>
+            <Button 
+              variant={isSelectMode ? "secondary" : "outline"}
+              onClick={toggleSelectMode}
+            >
+              {isSelectMode ? (
+                <>
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </>
+              ) : (
+                "Select Multiple"
+              )}
+            </Button>
 
+            {!propEmployees && (
               <Button 
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={() => handleCellClick(weekDays[0])}
@@ -290,8 +294,8 @@ export default function ScheduleMaker({
                 <Plus className="w-4 h-4 mr-2" />
                 Add Shift
               </Button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Bulk Action Bar */}
