@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { X, Clock, GripVertical, Edit2, Trash2 } from "lucide-react";
+import { X, Clock, GripVertical, Edit2, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 interface Employee {
@@ -40,7 +40,7 @@ interface DailyScheduleViewProps {
 const START_HOUR = 8;
 const END_HOUR = 23;
 const TOTAL_HOURS = END_HOUR - START_HOUR;
-const PIXELS_PER_HOUR = 60; // Width of each hour column in pixels
+const PIXELS_PER_HOUR = 60;
 
 export default function DailyScheduleView({
   date,
@@ -52,8 +52,8 @@ export default function DailyScheduleView({
   onAddShift,
 }: DailyScheduleViewProps) {
   const [draggedShift, setDraggedShift] = useState<Shift | null>(null);
-  const [resizingShift, setResizingShift] = useState<{shift: Shift, edge: 'start' | 'end'} | null>(null);
-  const [previewTime, setPreviewTime] = useState<string | null>(null);
+  const [editingShiftId, setEditingShiftId] = useState<string | null>(null);
+  const [tempTimes, setTempTimes] = useState<{start: string, end: string}>({start: '', end: ''});
   const timelineRef = useRef<HTMLDivElement>(null);
 
   // Filter shifts for this date
@@ -77,14 +77,6 @@ export default function DailyScheduleView({
   const timeToMinutes = (timeStr: string) => {
     const [hours, minutes] = timeStr.split(":").map(Number);
     return (hours - START_HOUR) * 60 + minutes;
-  };
-
-  // Minutes to time string
-  const minutesToTime = (minutes: number) => {
-    const totalMinutes = minutes + START_HOUR * 60;
-    const h = Math.floor(totalMinutes / 60);
-    const m = Math.round(totalMinutes % 60);
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
   };
 
   // Calculate shift position and width
@@ -118,81 +110,79 @@ export default function DailyScheduleView({
     return (endH + endM / 60) - (startH + startM / 60);
   };
 
-  // Get mouse position relative to timeline and convert to time
-  const getTimeFromMousePosition = useCallback((clientX: number) => {
-    if (!timelineRef.current) return null;
-    const rect = timelineRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const percentage = x / rect.width;
-    const totalMinutes = percentage * TOTAL_HOURS * 60;
-    // Snap to 15-minute increments
-    const snappedMinutes = Math.round(totalMinutes / 15) * 15;
-    return minutesToTime(Math.max(0, Math.min(snappedMinutes, TOTAL_HOURS * 60)));
-  }, []);
+  // Adjust time by minutes
+  const adjustTime = (timeStr: string, minutes: number): string => {
+    const [hours, mins] = timeStr.split(":").map(Number);
+    const totalMinutes = hours * 60 + mins + minutes;
+    const newHours = Math.floor(totalMinutes / 60);
+    const newMins = totalMinutes % 60;
+    return `${newHours.toString().padStart(2, '0')}:${newMins.toString().padStart(2, '0')}`;
+  };
 
-  // Resize handlers
-  const handleResizeStart = (e: React.MouseEvent, shift: Shift, edge: 'start' | 'end') => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    setResizingShift({ shift, edge });
-    
-    const handleMouseMove = (moveEvent: MouseEvent) => {
-      moveEvent.preventDefault();
-      const newTime = getTimeFromMousePosition(moveEvent.clientX);
-      if (newTime) {
-        setPreviewTime(newTime);
+  // Start editing a shift's times
+  const startEditing = (shift: Shift) => {
+    setEditingShiftId(shift.id);
+    setTempTimes({ start: shift.start_time, end: shift.end_time });
+  };
+
+  // Save edited times
+  const saveEdit = async (shiftId: string) => {
+    try {
+      const res = await fetch(`/api/shifts/${shiftId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          start_time: tempTimes.start,
+          end_time: tempTimes.end,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        if (onShiftUpdate) onShiftUpdate();
+      } else {
+        alert(data.error || "Failed to update shift");
       }
-    };
+    } catch (error) {
+      console.error("Error updating shift:", error);
+      alert("Failed to update shift");
+    }
+    setEditingShiftId(null);
+  };
 
-    const handleMouseUp = async (upEvent: MouseEvent) => {
-      upEvent.preventDefault();
-      const finalTime = getTimeFromMousePosition(upEvent.clientX);
-      
-      if (finalTime && resizingShift) {
-        const updates: Partial<Shift> = {};
-        if (resizingShift.edge === 'start') {
-          updates.start_time = finalTime;
-        } else {
-          updates.end_time = finalTime;
-        }
+  // Cancel editing
+  const cancelEdit = () => {
+    setEditingShiftId(null);
+    setTempTimes({ start: '', end: '' });
+  };
 
-        try {
-          const res = await fetch(`/api/shifts/${resizingShift.shift.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updates),
-          });
+  // Quick adjust buttons
+  const quickAdjust = async (shift: Shift, field: 'start' | 'end', minutes: number) => {
+    const newTime = adjustTime(field === 'start' ? shift.start_time : shift.end_time, minutes);
+    
+    try {
+      const res = await fetch(`/api/shifts/${shift.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          [field === 'start' ? 'start_time' : 'end_time']: newTime,
+        }),
+      });
 
-          const data = await res.json();
-          if (data.success) {
-            if (onShiftUpdate) onShiftUpdate();
-          } else {
-            alert(data.error || "Failed to update shift");
-          }
-        } catch (error) {
-          console.error("Error updating shift:", error);
-          alert("Failed to update shift");
-        }
+      const data = await res.json();
+      if (data.success) {
+        if (onShiftUpdate) onShiftUpdate();
+      } else {
+        alert(data.error || "Failed to update shift");
       }
-      
-      setResizingShift(null);
-      setPreviewTime(null);
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    } catch (error) {
+      console.error("Error updating shift:", error);
+      alert("Failed to update shift");
+    }
   };
 
   // Drag handlers for moving between employees
   const handleDragStart = (e: React.DragEvent, shift: Shift) => {
-    // Don't start drag if we're resizing
-    if (resizingShift) {
-      e.preventDefault();
-      return;
-    }
     setDraggedShift(shift);
     e.dataTransfer.effectAllowed = "move";
   };
@@ -255,10 +245,8 @@ export default function DailyScheduleView({
   };
 
   const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
-    // Don't trigger click if we were resizing
-    if (resizingShift) return;
     e.stopPropagation();
-    if (onEditShift) {
+    if (onEditShift && editingShiftId !== shift.id) {
       onEditShift(shift);
     }
   };
@@ -372,80 +360,132 @@ export default function DailyScheduleView({
                     </div>
 
                     {/* Shifts */}
-                    {empShifts.map((shift) => (
-                      <div
-                        key={shift.id}
-                        draggable={!resizingShift}
-                        onDragStart={(e) => handleDragStart(e, shift)}
-                        onClick={(e) => handleShiftClick(e, shift)}
-                        className={`absolute top-2 bottom-2 rounded-md text-xs group/shift overflow-hidden select-none ${
-                          shift.status === "needs_cover"
-                            ? "bg-red-100 text-red-700 border border-red-200"
-                            : shift.status === "covered"
-                            ? "bg-green-100 text-green-700 border border-green-200"
-                            : "bg-blue-100 text-blue-700 border border-blue-200"
-                        } ${draggedShift?.id === shift.id ? "opacity-50" : ""} ${resizingShift?.shift.id === shift.id ? "z-50" : ""}`}
-                        style={getShiftStyle(shift)}
-                        title={`${formatTime(shift.start_time)} - ${formatTime(shift.end_time)} (${calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs)`}
-                      >
-                        {/* Resize handles - always visible for easier access */}
+                    {empShifts.map((shift) => {
+                      const isEditing = editingShiftId === shift.id;
+                      
+                      return (
                         <div
-                          className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center hover:bg-blue-500/30 z-10"
-                          onMouseDown={(e) => handleResizeStart(e, shift, 'start')}
+                          key={shift.id}
+                          draggable={!isEditing}
+                          onDragStart={(e) => handleDragStart(e, shift)}
+                          onClick={(e) => !isEditing && handleShiftClick(e, shift)}
+                          className={`absolute top-2 bottom-2 rounded-md text-xs group/shift overflow-hidden ${
+                            shift.status === "needs_cover"
+                              ? "bg-red-100 text-red-700 border border-red-200"
+                              : shift.status === "covered"
+                              ? "bg-green-100 text-green-700 border border-green-200"
+                              : "bg-blue-100 text-blue-700 border border-blue-200"
+                          } ${draggedShift?.id === shift.id ? "opacity-50" : ""}`}
+                          style={getShiftStyle(shift)}
                         >
-                          <div className="w-1 h-6 bg-slate-500/50 rounded-full" />
-                        </div>
-                        
-                        <div
-                          className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize flex items-center justify-center hover:bg-blue-500/30 z-10"
-                          onMouseDown={(e) => handleResizeStart(e, shift, 'end')}
-                        >
-                          <div className="w-1 h-6 bg-slate-500/50 rounded-full" />
-                        </div>
+                          {isEditing ? (
+                            // Editing mode with buttons
+                            <div className="h-full flex flex-col items-center justify-center p-1 bg-white">
+                              <div className="flex items-center gap-1 mb-1">
+                                <button
+                                  onClick={() => setTempTimes({...tempTimes, start: adjustTime(tempTimes.start, -15)})}
+                                  className="p-0.5 hover:bg-slate-200 rounded"
+                                >
+                                  <ChevronLeft className="w-3 h-3" />
+                                </button>
+                                <span className="text-[10px] font-medium">{formatTime(tempTimes.start)}</span>
+                                <button
+                                  onClick={() => setTempTimes({...tempTimes, start: adjustTime(tempTimes.start, 15)})}
+                                  className="p-0.5 hover:bg-slate-200 rounded"
+                                >
+                                  <ChevronRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => setTempTimes({...tempTimes, end: adjustTime(tempTimes.end, -15)})}
+                                  className="p-0.5 hover:bg-slate-200 rounded"
+                                >
+                                  <ChevronLeft className="w-3 h-3" />
+                                </button>
+                                <span className="text-[10px] font-medium">{formatTime(tempTimes.end)}</span>
+                                <button
+                                  onClick={() => setTempTimes({...tempTimes, end: adjustTime(tempTimes.end, 15)})}
+                                  className="p-0.5 hover:bg-slate-200 rounded"
+                                >
+                                  <ChevronRight className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <div className="flex gap-1 mt-1">
+                                <button
+                                  onClick={() => saveEdit(shift.id)}
+                                  className="px-2 py-0.5 bg-blue-600 text-white text-[10px] rounded"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="px-2 py-0.5 bg-slate-300 text-slate-700 text-[10px] rounded"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            // Normal display
+                            <>
+                              {/* Drag handle */}
+                              <div className="absolute left-1 top-1/2 -translate-y-1/2 opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                <GripVertical className="w-3 h-3 text-slate-400" />
+                              </div>
 
-                        {/* Drag handle - center area */}
-                        <div className="absolute left-4 right-4 top-0 bottom-0 cursor-move flex items-center justify-center">
-                          <div className="opacity-0 group-hover/shift:opacity-100 transition-opacity">
-                            <GripVertical className="w-4 h-4 text-slate-400" />
-                          </div>
-                        </div>
+                              {/* Shift content */}
+                              <div className="pl-5 pr-6 h-full flex flex-col justify-center">
+                                <div className="font-medium truncate">
+                                  {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                                </div>
+                                <div className="text-[10px] opacity-75">
+                                  {calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs
+                                </div>
+                              </div>
 
-                        {/* Shift content */}
-                        <div className="px-5 h-full flex flex-col justify-center pointer-events-none">
-                          <div className="font-medium truncate">
-                            {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
-                          </div>
-                          <div className="text-[10px] opacity-75">
-                            {calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs
-                          </div>
-                        </div>
+                              {/* Quick adjust buttons - appear on hover */}
+                              <div className="absolute top-0 left-0 bottom-0 flex items-center opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); quickAdjust(shift, 'start', -15); }}
+                                  className="h-full px-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-700"
+                                  title="-15 min"
+                                >
+                                  <ChevronLeft className="w-3 h-3" />
+                                </button>
+                              </div>
+                              <div className="absolute top-0 right-6 bottom-0 flex items-center opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); quickAdjust(shift, 'end', 15); }}
+                                  className="h-full px-1 bg-blue-500/20 hover:bg-blue-500/40 text-blue-700"
+                                  title="+15 min"
+                                >
+                                  <ChevronRight className="w-3 h-3" />
+                                </button>
+                              </div>
 
-                        {/* Edit/Delete buttons */}
-                        <div className="absolute top-1 right-5 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity z-20">
-                          <button
-                            onClick={(e) => handleShiftClick(e, shift)}
-                            className="p-1 bg-white rounded shadow-sm hover:bg-gray-100"
-                            title="Edit shift"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                          </button>
-                          <button
-                            onClick={(e) => handleDeleteShift(e, shift.id)}
-                            className="p-1 bg-white rounded shadow-sm hover:bg-red-100 text-red-600"
-                            title="Delete shift"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
+                              {/* Edit/Delete buttons */}
+                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => { e.stopPropagation(); startEditing(shift); }}
+                                  className="p-1 bg-white rounded shadow-sm hover:bg-gray-100"
+                                  title="Quick edit"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteShift(e, shift.id)}
+                                  className="p-1 bg-white rounded shadow-sm hover:bg-red-100 text-red-600"
+                                  title="Delete shift"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </>
+                          )}
                         </div>
-
-                        {/* Preview time while resizing */}
-                        {resizingShift?.shift.id === shift.id && previewTime && (
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">
-                            {resizingShift.edge === 'start' ? 'Start: ' : 'End: '}{formatTime(previewTime)}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {/* Empty state */}
                     {empShifts.length === 0 && (
@@ -478,7 +518,7 @@ export default function DailyScheduleView({
 
         {/* Tips */}
         <div className="mt-4 text-xs text-slate-400">
-          💡 Tip: Drag the left/right edges to resize, drag the center to move, click to edit
+          💡 Tip: Hover over shift and click arrows to adjust, click edit button for more options, drag to move
         </div>
       </CardContent>
     </Card>
