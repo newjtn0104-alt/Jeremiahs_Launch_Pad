@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2, X } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2, X, GripVertical } from "lucide-react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 
 interface Employee {
@@ -52,6 +52,10 @@ export default function ScheduleMaker({
   const [loading, setLoading] = useState(true);
   const [selectedShifts, setSelectedShifts] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
+  
+  // Drag and drop state
+  const [draggedShift, setDraggedShift] = useState<Shift | null>(null);
+  const [dragOverCell, setDragOverCell] = useState<{employeeId: string, date: string} | null>(null);
 
   // Use props if provided, otherwise fetch
   const weekStart = propWeekStart || currentWeek;
@@ -154,6 +158,62 @@ export default function ScheduleMaker({
       console.error("Error deleting shift:", error);
       alert("Failed to delete shift");
     }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e: React.DragEvent, shift: Shift) => {
+    setDraggedShift(shift);
+    e.dataTransfer.effectAllowed = "move";
+    // Set a transparent drag image or use default
+  };
+
+  const handleDragOver = (e: React.DragEvent, employeeId: string, date: Date) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    setDragOverCell({ employeeId, date: format(date, "yyyy-MM-dd") });
+  };
+
+  const handleDragLeave = () => {
+    setDragOverCell(null);
+  };
+
+  const handleDrop = async (e: React.DragEvent, employeeId: string, date: Date) => {
+    e.preventDefault();
+    setDragOverCell(null);
+    
+    if (!draggedShift) return;
+    
+    const newDate = format(date, "yyyy-MM-dd");
+    
+    // Only update if something changed
+    if (draggedShift.employee_id === employeeId && draggedShift.date === newDate) {
+      setDraggedShift(null);
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/shifts/${draggedShift.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employee_id: employeeId,
+          date: newDate,
+        }),
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        if (onShiftUpdate) onShiftUpdate();
+        if (!propShifts) fetchShifts();
+      } else {
+        alert(data.error || "Failed to move shift");
+      }
+    } catch (error) {
+      console.error("Error moving shift:", error);
+      alert("Failed to move shift");
+    }
+    
+    setDraggedShift(null);
   };
 
   // Bulk selection functions
@@ -325,6 +385,13 @@ export default function ScheduleMaker({
             </Button>
           </div>
         )}
+        
+        {/* Drag and drop hint */}
+        {!isSelectMode && (
+          <div className="mt-2 text-xs text-slate-400">
+            💡 Tip: Drag and drop shifts to move them to different days or employees
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
@@ -378,18 +445,29 @@ export default function ScheduleMaker({
                       const dayShifts = getShiftsForDay(day).filter(
                         (s) => s.employee_id === employee.id
                       );
+                      const dateStr = format(day, "yyyy-MM-dd");
+                      const isDragOver = dragOverCell?.employeeId === employee.id && dragOverCell?.date === dateStr;
 
                       return (
                         <div
                           key={dayIndex}
-                          className="p-2 min-h-[80px] bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
+                          className={`p-2 min-h-[80px] rounded-lg border transition-colors group ${
+                            isDragOver 
+                              ? "bg-blue-100 border-blue-400 border-2" 
+                              : "bg-slate-50 border-slate-100 cursor-pointer hover:bg-slate-100"
+                          }`}
                           onClick={() => !isSelectMode && dayShifts.length === 0 && handleCellClick(day, employee.id)}
-                          title={isSelectMode ? "Click shift to select" : dayShifts.length > 0 ? "Click shift to edit" : "Click to add shift"}
+                          onDragOver={(e) => handleDragOver(e, employee.id, day)}
+                          onDragLeave={handleDragLeave}
+                          onDrop={(e) => handleDrop(e, employee.id, day)}
+                          title={isSelectMode ? "Click shift to select" : dayShifts.length > 0 ? "Click shift to edit, or drag to move" : "Click to add shift, or drop shift here"}
                         >
                           {dayShifts.map((shift) => (
                             <div
                               key={shift.id}
-                              className={`text-xs p-2 rounded mb-1 relative group/shift cursor-pointer ${
+                              draggable={!isSelectMode}
+                              onDragStart={(e) => handleDragStart(e, shift)}
+                              className={`text-xs p-2 rounded mb-1 relative group/shift cursor-move ${
                                 selectedShifts.has(shift.id)
                                   ? "ring-2 ring-blue-500 bg-blue-100 text-blue-700"
                                   : shift.status === "needs_cover"
@@ -397,9 +475,16 @@ export default function ScheduleMaker({
                                   : shift.status === "covered"
                                   ? "bg-green-100 text-green-700"
                                   : "bg-blue-100 text-blue-700"
-                              }`}
+                              } ${draggedShift?.id === shift.id ? "opacity-50" : ""}`}
                               onClick={(e) => handleShiftClick(e, shift)}
                             >
+                              {/* Drag handle */}
+                              {!isSelectMode && (
+                                <div className="absolute top-1 left-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                  <GripVertical className="w-3 h-3 text-slate-400" />
+                                </div>
+                              )}
+                              
                               {/* Checkbox in select mode */}
                               {isSelectMode && (
                                 <div className="absolute top-1 left-1">
@@ -410,10 +495,10 @@ export default function ScheduleMaker({
                                 </div>
                               )}
                               
-                              <div className={`font-medium ${isSelectMode ? "pl-4" : ""}`}>
+                              <div className={`font-medium ${isSelectMode || !isSelectMode ? "pl-4" : ""}`}>
                                 {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                               </div>
-                              <div className={`text-[10px] opacity-75 ${isSelectMode ? "pl-4" : ""}`}>
+                              <div className={`text-[10px] opacity-75 ${isSelectMode || !isSelectMode ? "pl-4" : ""}`}>
                                 {calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs
                               </div>
                               
