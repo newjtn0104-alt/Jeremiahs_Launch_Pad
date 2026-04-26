@@ -48,10 +48,15 @@ const INVENTORY_GROUPS = [
     ],
   },
   {
-    name: "Bases",
+    name: "Vanilla & Chocolate Mix",
     items: [
       { id: "vanilla_mix", label: "Vanilla Mix" },
       { id: "chocolate_mix", label: "Chocolate Mix" },
+    ],
+  },
+  {
+    name: "Italian Ice Bases",
+    items: [
       { id: "mango_base", label: "Ice Italian Base Mango" },
       { id: "blueberry_base", label: "Ice Italian Base Blueberry" },
       { id: "chocolate_base", label: "Ice Italian Base Chocolate" },

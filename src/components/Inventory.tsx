@@ -39,25 +39,26 @@ const ITEM_CATEGORIES: Record<string, string> = {
   half_gallon_container: "Containers",
   quart_container: "Containers",
   togo_carrier: "Containers",
-  // Bases
-  vanilla_mix: "Bases",
-  chocolate_mix: "Bases",
-  mango_base: "Bases",
-  blueberry_base: "Bases",
-  chocolate_base: "Bases",
-  sea_salt_caramel_base: "Bases",
-  sugar_free_cherry_base: "Bases",
-  sugar_free_mango_base: "Bases",
-  black_cherry_base: "Bases",
-  orange_smash_base: "Bases",
-  strawberry_base: "Bases",
-  sour_green_apple_base: "Bases",
-  mint_scoop_frog_base: "Bases",
-  strawberry_lemon_base: "Bases",
-  cherry_base: "Bases",
-  pink_cotton_candy_base: "Bases",
-  stabilizer_base: "Bases",
-  lemon_base: "Bases",
+  // Vanilla & Chocolate Mix (separate category)
+  vanilla_mix: "Vanilla & Chocolate Mix",
+  chocolate_mix: "Vanilla & Chocolate Mix",
+  // Italian Ice Bases
+  mango_base: "Italian Ice Bases",
+  blueberry_base: "Italian Ice Bases",
+  chocolate_base: "Italian Ice Bases",
+  sea_salt_caramel_base: "Italian Ice Bases",
+  sugar_free_cherry_base: "Italian Ice Bases",
+  sugar_free_mango_base: "Italian Ice Bases",
+  black_cherry_base: "Italian Ice Bases",
+  orange_smash_base: "Italian Ice Bases",
+  strawberry_base: "Italian Ice Bases",
+  sour_green_apple_base: "Italian Ice Bases",
+  mint_scoop_frog_base: "Italian Ice Bases",
+  strawberry_lemon_base: "Italian Ice Bases",
+  cherry_base: "Italian Ice Bases",
+  pink_cotton_candy_base: "Italian Ice Bases",
+  stabilizer_base: "Italian Ice Bases",
+  lemon_base: "Italian Ice Bases",
   // Toppings
   crushed_pineapple: "Toppings",
   pineapple_juice: "Toppings",
@@ -98,7 +99,7 @@ const ITEM_CATEGORIES: Record<string, string> = {
   water_bottles: "Other",
 };
 
-const CATEGORY_ORDER = ["Lids", "Cups", "Containers", "Bases", "Toppings", "Utensils", "Paper Goods", "Cleaning", "Other"];
+const CATEGORY_ORDER = ["Lids", "Cups", "Containers", "Vanilla & Chocolate Mix", "Italian Ice Bases", "Toppings", "Utensils", "Paper Goods", "Cleaning", "Other"];
 
 export default function Inventory() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
