@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import ScheduleMaker from '@/components/ScheduleMaker';
 import AddEmployeeModal from '@/components/AddEmployeeModal';
+import AddShiftModal from '@/components/AddShiftModal';
 import { Button } from '@/components/ui/button';
 import { Plus, Users, CalendarDays } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
@@ -32,13 +33,15 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+  const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [store, setStore] = useState("Pembroke Pines");
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   useEffect(() => {
     fetchData();
-  }, [currentWeek]);
+  }, [currentWeek, store]);
 
   const fetchData = async () => {
     try {
@@ -67,13 +70,11 @@ export default function SchedulePage() {
   };
 
   const handleAddEmployee = () => {
-    console.log('Opening employee modal');
     setIsEmployeeModalOpen(true);
   };
 
   const handleAddShift = () => {
-    // TODO: Open shift modal
-    console.log('Add shift clicked');
+    setIsShiftModalOpen(true);
   };
 
   const handleShiftUpdate = () => {
@@ -179,6 +180,14 @@ export default function SchedulePage() {
         isOpen={isEmployeeModalOpen}
         onClose={() => setIsEmployeeModalOpen(false)}
         onSuccess={handleEmployeeAdded}
+      />
+      <AddShiftModal
+        isOpen={isShiftModalOpen}
+        onClose={() => setIsShiftModalOpen(false)}
+        onSuccess={handleShiftUpdate}
+        employees={employees}
+        weekStart={weekStart}
+        store={store}
       />
     </div>
   );
