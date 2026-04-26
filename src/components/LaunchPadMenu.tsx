@@ -25,7 +25,8 @@ import {
   PlusCircle,
   List,
   ClipboardCheck,
-  Settings
+  Settings,
+  Calendar
 } from "lucide-react";
 import WhosWorking from "./WhosWorking";
 import TastyTargets from "./TastyTargets";
@@ -46,7 +47,7 @@ import LaborVariance from "./LaborVariance";
 import ParSettings from "./ParSettings";
 import NotificationBell from "./NotificationBell";
 
-type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks" | "sysco" | "labor";
+type MenuItem = "home" | "launchpad" | "learning" | "inventory" | "checklists" | "revel" | "crm" | "quicklinks" | "sysco" | "labor" | "schedule";
 type LaunchPadSubItem = "whos-working" | "tasty-targets" | "froggy-focuses" | "sweet-start";
 type LearningSubItem = "icm-learning";
 type InventorySubItem = "view-inventory" | "submit-inventory" | "par-settings";
@@ -105,6 +106,7 @@ export default function LaunchPadMenu() {
     { id: "labor" as MenuItem, label: "Labor Variance", icon: Clock },
     { id: "revel" as MenuItem, label: "Revel Closing", icon: DoorOpen },
     { id: "crm" as MenuItem, label: "CRM", icon: Contact },
+    { id: "schedule" as MenuItem, label: "Schedule", icon: Calendar },
     { id: "quicklinks" as MenuItem, label: "Quick Links", icon: Link2 },
   ];
 
@@ -168,6 +170,8 @@ export default function LaunchPadMenu() {
         return <RevelClosingLive />;
       case "crm":
         return <CRM />;
+      case "schedule":
+        return <div className="p-8 text-center"><h2 className="text-xl font-semibold">Opening Schedule...</h2><p className="text-gray-500 mt-2">Redirecting to schedule page</p></div>;
       case "quicklinks":
         return <QuickLinks />;
       default:
@@ -176,6 +180,10 @@ export default function LaunchPadMenu() {
   };
 
   const handleMenuClick = (itemId: MenuItem) => {
+    if (itemId === "schedule") {
+      window.location.href = "/schedule";
+      return;
+    }
     setActiveItem(itemId);
     setMobileMenuOpen(false);
     if (itemId === "launchpad" || itemId === "learning" || itemId === "inventory" || itemId === "checklists") {

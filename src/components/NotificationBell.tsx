@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, X } from "lucide-react";
+import { Bell, X, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface Notification {
@@ -18,9 +18,11 @@ export default function NotificationBell() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [lastCheck, setLastCheck] = useState<Date>(new Date());
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const fetchNewSubmissions = async () => {
+    setIsLoading(true);
     try {
       // Fetch checklists
       const checklistRes = await fetch("/api/checklist");
@@ -72,18 +74,17 @@ export default function NotificationBell() {
       setLastCheck(new Date());
     } catch (error) {
       console.error("Error fetching notifications:", error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
+  // Only fetch when bell is clicked open, not on interval
   useEffect(() => {
-    // Initial fetch
-    fetchNewSubmissions();
-
-    // Poll every 30 seconds
-    const interval = setInterval(fetchNewSubmissions, 30000);
-
-    return () => clearInterval(interval);
-  }, [lastCheck]);
+    if (isOpen) {
+      fetchNewSubmissions();
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     // Close dropdown when clicking outside
@@ -135,6 +136,14 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <span className="font-semibold text-sm">Notifications</span>
             <div className="flex items-center gap-2">
+              <button
+                onClick={fetchNewSubmissions}
+                disabled={isLoading}
+                className="text-slate-400 hover:text-slate-600 disabled:opacity-50"
+                title="Refresh"
+              >
+                <RefreshCw className={`w-4 h-4 ${isLoading ? "animate-spin" : ""}`} />
+              </button>
               {unreadCount > 0 && (
                 <button
                   onClick={markAllAsRead}
