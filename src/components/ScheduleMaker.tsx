@@ -5,8 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2, X, GripVertical } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2, X, GripVertical, LayoutGrid } from "lucide-react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
+import DailyScheduleView from "./DailyScheduleView";
 
 interface Employee {
   id: string;
@@ -52,6 +53,7 @@ export default function ScheduleMaker({
   const [loading, setLoading] = useState(true);
   const [selectedShifts, setSelectedShifts] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
+  const [dailyViewDate, setDailyViewDate] = useState<Date | null>(null);
   
   // Drag and drop state
   const [draggedShift, setDraggedShift] = useState<Shift | null>(null);
@@ -128,6 +130,14 @@ export default function ScheduleMaker({
     if (onAddShift) {
       onAddShift(day, employeeId);
     }
+  };
+
+  const handleDayHeaderClick = (day: Date) => {
+    setDailyViewDate(day);
+  };
+
+  const handleCloseDailyView = () => {
+    setDailyViewDate(null);
   };
 
   const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
@@ -283,6 +293,21 @@ export default function ScheduleMaker({
     }
   };
 
+  // If daily view is open, show it
+  if (dailyViewDate) {
+    return (
+      <DailyScheduleView
+        date={dailyViewDate}
+        employees={displayEmployees}
+        shifts={displayShifts}
+        onClose={handleCloseDailyView}
+        onShiftUpdate={onShiftUpdate}
+        onEditShift={onEditShift}
+        onAddShift={onAddShift}
+      />
+    );
+  }
+
   return (
     <Card className="w-full">
       <CardHeader>
@@ -389,7 +414,7 @@ export default function ScheduleMaker({
         {/* Drag and drop hint */}
         {!isSelectMode && (
           <div className="mt-2 text-xs text-slate-400">
-            💡 Tip: Drag and drop shifts to move them to different days or employees
+            💡 Tip: Click on a day header for daily timeline view. Drag and drop shifts to move them.
           </div>
         )}
       </CardHeader>
@@ -406,13 +431,13 @@ export default function ScheduleMaker({
                 {weekDays.map((day, i) => (
                   <div
                     key={i}
-                    className={`text-center p-2 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors ${
+                    className={`text-center p-2 rounded-lg cursor-pointer hover:bg-slate-200 transition-colors ${
                       format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
                         ? "bg-blue-100"
                         : "bg-slate-50"
                     }`}
-                    onClick={() => !isSelectMode && handleCellClick(day)}
-                    title={isSelectMode ? "Select mode active" : "Click to add shift for this day"}
+                    onClick={() => handleDayHeaderClick(day)}
+                    title="Click for daily timeline view"
                   >
                     <div className="text-xs text-slate-500">{format(day, "EEE")}</div>
                     <div className="font-semibold">{format(day, "d")}</div>
