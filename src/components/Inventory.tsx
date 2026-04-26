@@ -20,6 +20,86 @@ interface ParSettings {
   [itemId: string]: number;
 }
 
+// Item categories for grouping
+const ITEM_CATEGORIES: Record<string, string> = {
+  // Lids
+  small_lid: "Lids",
+  medium_lid: "Lids",
+  large_lid: "Lids",
+  half_gallon_lid: "Lids",
+  // Cups
+  tadpole_cup: "Cups",
+  small_cups: "Cups",
+  medium_cups: "Cups",
+  large_cup: "Cups",
+  translucent_cups: "Cups",
+  souffle_cup: "Cups",
+  sample_cups: "Cups",
+  // Containers
+  half_gallon_container: "Containers",
+  quart_container: "Containers",
+  togo_carrier: "Containers",
+  // Bases
+  vanilla_mix: "Bases",
+  chocolate_mix: "Bases",
+  mango_base: "Bases",
+  blueberry_base: "Bases",
+  chocolate_base: "Bases",
+  sea_salt_caramel_base: "Bases",
+  sugar_free_cherry_base: "Bases",
+  sugar_free_mango_base: "Bases",
+  black_cherry_base: "Bases",
+  orange_smash_base: "Bases",
+  strawberry_base: "Bases",
+  sour_green_apple_base: "Bases",
+  mint_scoop_frog_base: "Bases",
+  strawberry_lemon_base: "Bases",
+  cherry_base: "Bases",
+  pink_cotton_candy_base: "Bases",
+  stabilizer_base: "Bases",
+  lemon_base: "Bases",
+  // Toppings
+  crushed_pineapple: "Toppings",
+  pineapple_juice: "Toppings",
+  peanut_butter: "Toppings",
+  goya_coconut: "Toppings",
+  cookie_butter_crumbs: "Toppings",
+  cake_batter: "Toppings",
+  shredded_coconut: "Toppings",
+  sugar: "Toppings",
+  chocolate_chips: "Toppings",
+  oreo_cookies: "Toppings",
+  ic_sandwich_wafer: "Toppings",
+  nerds: "Toppings",
+  rainbow_sprinkles: "Toppings",
+  // Utensils
+  green_spoons: "Utensils",
+  sample_spoons: "Utensils",
+  vinyl_gloves: "Utensils",
+  // Paper Goods
+  register_roll: "Paper Goods",
+  thank_you_bag: "Paper Goods",
+  paper_towel_roll: "Paper Goods",
+  toilet_paper: "Paper Goods",
+  napkins: "Paper Goods",
+  black_trash_bag: "Paper Goods",
+  wypall: "Paper Goods",
+  // Cleaning
+  icm_lube: "Cleaning",
+  sanitizer: "Cleaning",
+  magic_eraser: "Cleaning",
+  handsoap: "Cleaning",
+  dishwashing_detergent: "Cleaning",
+  mop_sink_cleaner: "Cleaning",
+  glass_cleaner: "Cleaning",
+  sheila_shine: "Cleaning",
+  wet_wipes: "Cleaning",
+  // Other
+  water_bottles: "Other",
+};
+
+const CATEGORY_ORDER = ["Lids", "Cups", "Containers", "Bases", "Toppings", "Utensils", "Paper Goods", "Cleaning", "Other"];
+
 export default function Inventory() {
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [parSettings, setParSettings] = useState<ParSettings>({});
@@ -119,7 +199,7 @@ export default function Inventory() {
   // Check if item is below par
   const isBelowPar = (itemName: string, count: string): boolean => {
     const parLevel = parSettings[itemName] || 0;
-    const itemCount = parseInt(count) || 0;
+    const itemCount = parseFloat(count) || 0;
     return parLevel > 0 && itemCount < parLevel;
   };
 
@@ -130,25 +210,48 @@ export default function Inventory() {
     ).length;
   };
 
+  // Group items by category
+  const groupItemsByCategory = (items: Record<string, string>) => {
+    const grouped: Record<string, Array<{ name: string; count: string }>> = {};
+    
+    CATEGORY_ORDER.forEach(cat => grouped[cat] = []);
+    
+    Object.entries(items).forEach(([name, count]) => {
+      const category = ITEM_CATEGORIES[name] || "Other";
+      if (!grouped[category]) grouped[category] = [];
+      grouped[category].push({ name, count });
+    });
+    
+    return grouped;
+  };
+
   // Export single submission to CSV
   const exportSubmissionToCSV = (submission: Submission, e?: React.MouseEvent) => {
     if (e) {
       e.stopPropagation();
     }
 
-    const headers = ["Item Name", "Count", "Par Level", "Status"];
-    const rows = Object.entries(submission.items).map(([itemName, count]) => {
-      const parLevel = parSettings[itemName] || 0;
-      const belowPar = isBelowPar(itemName, count);
-      return [
-        `"${itemName}"`,
-        count,
-        parLevel.toString(),
-        belowPar ? "BUY 1" : "OK"
-      ];
+    const headers = ["Category", "Item Name", "Count", "Par Level", "Status"];
+    const rows: string[][] = [];
+    
+    const grouped = groupItemsByCategory(submission.items);
+    
+    CATEGORY_ORDER.forEach((category) => {
+      const items = grouped[category] || [];
+      items.forEach(({ name, count }) => {
+        const parLevel = parSettings[name] || 0;
+        const belowPar = isBelowPar(name, count);
+        rows.push([
+          category,
+          name,
+          count,
+          parLevel.toString(),
+          belowPar ? "BUY 1" : "OK"
+        ]);
+      });
     });
 
-    const csvContent = [headers.join(","), ...rows.map((row) => row.join(","))].join("\n");
+    const csvContent = [headers.join(","), ...rows.map((row) => row.map(cell => `"${cell}"`).join(","))].join("\n");
 
     const blob = new Blob([csvContent], { type: "text/csv" });
     const url = window.URL.createObjectURL(blob);
@@ -163,23 +266,28 @@ export default function Inventory() {
 
   // Export all submissions to CSV
   const exportAllToCSV = () => {
-    const headers = ["Date", "Employee", "Location", "Item Name", "Count", "Par Level", "Status", "Notes"];
+    const headers = ["Date", "Employee", "Location", "Category", "Item Name", "Count", "Par Level", "Status", "Notes"];
     const rows: string[][] = [];
 
     submissions.forEach((sub) => {
-      Object.entries(sub.items).forEach(([itemName, count]) => {
-        const parLevel = parSettings[itemName] || 0;
-        const belowPar = isBelowPar(itemName, count);
-        rows.push([
-          sub.date, 
-          sub.employeeName, 
-          sub.location, 
-          itemName, 
-          count, 
-          parLevel.toString(),
-          belowPar ? "BUY 1" : "OK",
-          sub.notes || ""
-        ]);
+      const grouped = groupItemsByCategory(sub.items);
+      CATEGORY_ORDER.forEach((category) => {
+        const items = grouped[category] || [];
+        items.forEach(({ name, count }) => {
+          const parLevel = parSettings[name] || 0;
+          const belowPar = isBelowPar(name, count);
+          rows.push([
+            sub.date,
+            sub.employeeName,
+            sub.location,
+            category,
+            name,
+            count,
+            parLevel.toString(),
+            belowPar ? "BUY 1" : "OK",
+            sub.notes || ""
+          ]);
+        });
       });
     });
 
@@ -276,6 +384,7 @@ export default function Inventory() {
         const itemCount = Object.keys(submission.items).length;
         const hasNotes = submission.notes && submission.notes.trim().length > 0;
         const belowParCount = countBelowPar(submission);
+        const groupedItems = isExpanded ? groupItemsByCategory(submission.items) : null;
 
         return (
           <Card key={submission.id} className="border-slate-200 shadow-md bg-white overflow-hidden">
@@ -321,7 +430,7 @@ export default function Inventory() {
               </div>
             </div>
 
-            {isExpanded && (
+            {isExpanded && groupedItems && (
               <div className="border-t border-slate-200 bg-slate-50">
                 <div className="p-4">
                   {/* Notes Section */}
@@ -335,49 +444,64 @@ export default function Inventory() {
                     </div>
                   )}
                   
-                  <h4 className="font-medium text-slate-700 mb-3">Inventory Items</h4>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-                    {Object.entries(submission.items).map(([itemName, count]) => {
-                      const itemKey = `${submission.id}-${itemName}`;
-                      const isChecked = checkedItems.has(itemKey);
-                      const belowPar = isBelowPar(itemName, count);
-                      const parLevel = parSettings[itemName] || 0;
-                      
-                      return (
-                        <div
-                          key={itemName}
-                          onClick={() => toggleItemChecked(submission.id, itemName)}
-                          className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
-                            isChecked
-                              ? "bg-green-100 border-green-400 shadow-sm"
-                              : belowPar
-                              ? "bg-red-50 border-red-300 shadow-sm"
-                              : "bg-white border-slate-200 hover:border-slate-300"
-                          }`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <p className={`text-xs truncate ${isChecked ? "text-green-700" : belowPar ? "text-red-700" : "text-slate-500"}`}>
-                              {itemName}
-                            </p>
-                            {isChecked && (
-                              <Check className="w-4 h-4 text-green-600 flex-shrink-0 ml-1" />
-                            )}
-                            {belowPar && !isChecked && (
-                              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 ml-1" />
-                            )}
-                          </div>
-                          <p className={`text-lg font-semibold ${isChecked ? "text-green-800" : belowPar ? "text-red-800" : "text-slate-900"}`}>
-                            {count}
-                          </p>
-                          {belowPar && (
-                            <p className="text-xs text-red-600 font-medium mt-1">
-                              BUY 1 (par: {parLevel})
-                            </p>
-                          )}
+                  <h4 className="font-medium text-slate-700 mb-3">Inventory Items by Category</h4>
+                  
+                  {CATEGORY_ORDER.map((category) => {
+                    const items = groupedItems[category] || [];
+                    if (items.length === 0) return null;
+                    
+                    return (
+                      <div key={category} className="mb-4">
+                        <h5 className="text-sm font-semibold text-slate-800 mb-2 flex items-center gap-2">
+                          <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                          {category}
+                        </h5>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                          {items.map(({ name, count }) => {
+                            const itemKey = `${submission.id}-${name}`;
+                            const isChecked = checkedItems.has(itemKey);
+                            const belowPar = isBelowPar(name, count);
+                            const parLevel = parSettings[name] || 0;
+                            
+                            return (
+                              <div
+                                key={name}
+                                onClick={() => toggleItemChecked(submission.id, name)}
+                                className={`p-3 rounded-lg border cursor-pointer transition-all duration-200 ${
+                                  isChecked
+                                    ? "bg-green-100 border-green-400 shadow-sm"
+                                    : belowPar
+                                    ? "bg-red-50 border-red-300 shadow-sm"
+                                    : "bg-white border-slate-200 hover:border-slate-300"
+                                }`}
+                              >
+                                <div className="flex items-start justify-between">
+                                  <p className={`text-xs truncate ${isChecked ? "text-green-700" : belowPar ? "text-red-700" : "text-slate-500"}`}>
+                                    {name}
+                                  </p>
+                                  {isChecked && (
+                                    <Check className="w-4 h-4 text-green-600 flex-shrink-0 ml-1" />
+                                  )}
+                                  {belowPar && !isChecked && (
+                                    <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 ml-1" />
+                                  )}
+                                </div>
+                                <p className={`text-lg font-semibold ${isChecked ? "text-green-800" : belowPar ? "text-red-800" : "text-slate-900"}`}>
+                                  {count}
+                                </p>
+                                {belowPar && (
+                                  <p className="text-xs text-red-600 font-medium mt-1">
+                                    BUY 1 (par: {parLevel})
+                                  </p>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
-                      );
-                    })}
-                  </div>
+                      </div>
+                    );
+                  })}
+                  
                   <p className="text-xs text-slate-400 mt-3">
                     Click items to mark as checked (green). Red items are below par level.
                   </p>
