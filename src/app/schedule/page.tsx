@@ -36,6 +36,8 @@ export default function SchedulePage() {
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [store, setStore] = useState("Pembroke Pines");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -75,6 +77,14 @@ export default function SchedulePage() {
   };
 
   const handleAddShift = () => {
+    setSelectedDate(null);
+    setSelectedEmployeeId(null);
+    setIsShiftModalOpen(true);
+  };
+
+  const handleCellClick = (date: Date, employeeId?: string) => {
+    setSelectedDate(date);
+    setSelectedEmployeeId(employeeId || null);
     setIsShiftModalOpen(true);
   };
 
@@ -172,6 +182,7 @@ export default function SchedulePage() {
             shifts={shifts}
             weekStart={weekStart}
             onShiftUpdate={handleShiftUpdate}
+            onAddShift={handleCellClick}
           />
         )}
       </div>
@@ -192,6 +203,8 @@ export default function SchedulePage() {
           employees={employees}
           weekStart={weekStart}
           store={store}
+          preselectedDate={selectedDate}
+          preselectedEmployeeId={selectedEmployeeId}
         />
       </ClientOnly>
     </div>

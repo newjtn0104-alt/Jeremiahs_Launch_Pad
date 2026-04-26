@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,6 +27,8 @@ interface AddShiftModalProps {
   employees: Employee[];
   weekStart: Date;
   store: string;
+  preselectedDate?: Date | null;
+  preselectedEmployeeId?: string | null;
 }
 
 export default function AddShiftModal({
@@ -36,6 +38,8 @@ export default function AddShiftModal({
   employees,
   weekStart,
   store,
+  preselectedDate,
+  preselectedEmployeeId,
 }: AddShiftModalProps) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -56,6 +60,27 @@ export default function AddShiftModal({
       label: format(date, "EEE, MMM d"),
     };
   });
+
+  // Update form when preselected values change
+  useEffect(() => {
+    if (preselectedDate) {
+      setFormData(prev => ({
+        ...prev,
+        date: format(preselectedDate, "yyyy-MM-dd"),
+      }));
+    }
+    if (preselectedEmployeeId) {
+      setFormData(prev => ({
+        ...prev,
+        employee_id: preselectedEmployeeId,
+      }));
+    }
+    // Update store when it changes
+    setFormData(prev => ({
+      ...prev,
+      store: store,
+    }));
+  }, [preselectedDate, preselectedEmployeeId, store]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

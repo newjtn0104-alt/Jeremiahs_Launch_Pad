@@ -27,20 +27,45 @@ interface Shift {
   employee?: Employee;
 }
 
-export default function ScheduleMaker() {
+interface ScheduleMakerProps {
+  employees?: Employee[];
+  shifts?: Shift[];
+  weekStart?: Date;
+  onShiftUpdate?: () => void;
+  onAddShift?: (date: Date, employeeId?: string) => void;
+}
+
+export default function ScheduleMaker({
+  employees: propEmployees,
+  shifts: propShifts,
+  weekStart: propWeekStart,
+  onShiftUpdate,
+  onAddShift,
+}: ScheduleMakerProps) {
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [store, setStore] = useState<string>("Pembroke Pines");
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Use props if provided, otherwise fetch
+  const weekStart = propWeekStart || currentWeek;
+  const displayEmployees = propEmployees || employees;
+  const displayShifts = propShifts || shifts;
+
   // Generate week days (Mon-Sun)
-  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeek, i));
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   useEffect(() => {
-    fetchEmployees();
-    fetchShifts();
-  }, [currentWeek, store]);
+    if (!propEmployees) {
+      fetchEmployees();
+    }
+    if (!propShifts) {
+      fetchShifts();
+    } else {
+      setLoading(false);
+    }
+  }, [currentWeek, store, propEmployees, propShifts]);
 
   const fetchEmployees = async () => {
     try {
@@ -73,7 +98,7 @@ export default function ScheduleMaker() {
 
   const getShiftsForDay = (date: Date) => {
     const dateStr = format(date, "yyyy-MM-dd");
-    return shifts.filter((s) => s.date === dateStr);
+    return displayShifts.filter((s) => s.date === dateStr);
   };
 
   const formatTime = (timeStr: string) => {
@@ -88,6 +113,12 @@ export default function ScheduleMaker() {
     const [startH, startM] = start.split(":").map(Number);
     const [endH, endM] = end.split(":").map(Number);
     return (endH + endM / 60) - (startH + startM / 60);
+  };
+
+  const handleCellClick = (day: Date, employeeId?: string) => {
+    if (onAddShift) {
+      onAddShift(day, employeeId);
+    }
   };
 
   return (
@@ -106,45 +137,50 @@ export default function ScheduleMaker() {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <Select value={store} onValueChange={setStore}>
-              <SelectTrigger className="w-[180px]">
-                <Store className="w-4 h-4 mr-2" />
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Pembroke Pines">Pembroke Pines</SelectItem>
-                <SelectItem value="Coral Springs">Coral Springs</SelectItem>
-              </SelectContent>
-            </Select>
+          {!propEmployees && (
+            <div className="flex items-center gap-3">
+              <Select value={store} onValueChange={setStore}>
+                <SelectTrigger className="w-[180px]">
+                  <Store className="w-4 h-4 mr-2" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Pembroke Pines">Pembroke Pines</SelectItem>
+                  <SelectItem value="Coral Springs">Coral Springs</SelectItem>
+                </SelectContent>
+              </Select>
 
-            <div className="flex items-center gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+              <div className="flex items-center gap-1">
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentWeek(subWeeks(currentWeek, 1))}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700"
+                onClick={() => handleCellClick(weekDays[0])}
               >
-                <ChevronLeft className="w-4 h-4" />
-              </Button>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setCurrentWeek(addWeeks(currentWeek, 1))}
-              >
-                <ChevronRight className="w-4 h-4" />
+                <Plus className="w-4 h-4 mr-2" />
+                Add Shift
               </Button>
             </div>
-
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Shift
-            </Button>
-          </div>
+          )}
         </div>
       </CardHeader>
 
       <CardContent>
-        {loading ? (
+        {loading && !propEmployees ? (
           <div className="text-center py-12 text-slate-500">Loading schedule...</div>
         ) : (
           <div className="overflow-x-auto">
@@ -155,11 +191,13 @@ export default function ScheduleMaker() {
                 {weekDays.map((day, i) => (
                   <div
                     key={i}
-                    className={`text-center p-2 rounded-lg ${
+                    className={`text-center p-2 rounded-lg cursor-pointer hover:bg-slate-100 transition-colors ${
                       format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd")
                         ? "bg-blue-100"
                         : "bg-slate-50"
                     }`}
+                    onClick={() => handleCellClick(day)}
+                    title="Click to add shift for this day"
                   >
                     <div className="text-xs text-slate-500">{format(day, "EEE")}</div>
                     <div className="font-semibold">{format(day, "d")}</div>
@@ -168,12 +206,12 @@ export default function ScheduleMaker() {
               </div>
 
               {/* Employee Rows */}
-              {employees.length === 0 ? (
+              {displayEmployees.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   No employees found for {store}
                 </div>
               ) : (
-                employees.map((employee) => (
+                displayEmployees.map((employee) => (
                   <div
                     key={employee.id}
                     className="grid grid-cols-8 gap-2 mb-2 border-t border-slate-100 pt-2"
@@ -196,7 +234,9 @@ export default function ScheduleMaker() {
                       return (
                         <div
                           key={dayIndex}
-                          className="p-2 min-h-[80px] bg-slate-50 rounded-lg border border-slate-100"
+                          className="p-2 min-h-[80px] bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
+                          onClick={() => handleCellClick(day, employee.id)}
+                          title="Click to add shift"
                         >
                           {dayShifts.map((shift) => (
                             <div
@@ -218,13 +258,11 @@ export default function ScheduleMaker() {
                             </div>
                           ))}
 
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="w-full h-6 text-xs text-slate-400 hover:text-slate-600 opacity-0 hover:opacity-100 transition-opacity"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </Button>
+                          {dayShifts.length === 0 && (
+                            <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Plus className="w-5 h-5 text-slate-400" />
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -242,7 +280,7 @@ export default function ScheduleMaker() {
                     0
                   );
                   const laborCost = dayShifts.reduce((sum, s) => {
-                    const emp = employees.find((e) => e.id === s.employee_id);
+                    const emp = displayEmployees.find((e) => e.id === s.employee_id);
                     return sum + calculateHours(s.start_time, s.end_time) * (emp?.wage || 11);
                   }, 0);
 
