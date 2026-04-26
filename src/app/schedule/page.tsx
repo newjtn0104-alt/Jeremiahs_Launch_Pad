@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ScheduleMaker from '@/components/ScheduleMaker';
 import AddEmployeeModal from '@/components/AddEmployeeModal';
 import AddShiftModal from '@/components/AddShiftModal';
+import EditShiftModal from '@/components/EditShiftModal';
 import ClientOnly from '@/components/ClientOnly';
 import { Button } from '@/components/ui/button';
 import { Plus, Users, CalendarDays } from 'lucide-react';
@@ -35,9 +36,11 @@ export default function SchedulePage() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [store, setStore] = useState("Pembroke Pines");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
+  const [editingShift, setEditingShift] = useState<Shift | null>(null);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -86,6 +89,11 @@ export default function SchedulePage() {
     setSelectedDate(date);
     setSelectedEmployeeId(employeeId || null);
     setIsShiftModalOpen(true);
+  };
+
+  const handleEditShift = (shift: Shift) => {
+    setEditingShift(shift);
+    setIsEditModalOpen(true);
   };
 
   const handleShiftUpdate = () => {
@@ -183,6 +191,7 @@ export default function SchedulePage() {
             weekStart={weekStart}
             onShiftUpdate={handleShiftUpdate}
             onAddShift={handleCellClick}
+            onEditShift={handleEditShift}
           />
         )}
       </div>
@@ -205,6 +214,15 @@ export default function SchedulePage() {
           store={store}
           preselectedDate={selectedDate}
           preselectedEmployeeId={selectedEmployeeId}
+        />
+      </ClientOnly>
+      <ClientOnly>
+        <EditShiftModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onSuccess={handleShiftUpdate}
+          shift={editingShift}
+          employees={employees}
         />
       </ClientOnly>
     </div>

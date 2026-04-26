@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2 } from "lucide-react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 
 interface Employee {
@@ -33,6 +33,7 @@ interface ScheduleMakerProps {
   weekStart?: Date;
   onShiftUpdate?: () => void;
   onAddShift?: (date: Date, employeeId?: string) => void;
+  onEditShift?: (shift: Shift) => void;
 }
 
 export default function ScheduleMaker({
@@ -41,6 +42,7 @@ export default function ScheduleMaker({
   weekStart: propWeekStart,
   onShiftUpdate,
   onAddShift,
+  onEditShift,
 }: ScheduleMakerProps) {
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [store, setStore] = useState<string>("Pembroke Pines");
@@ -118,6 +120,34 @@ export default function ScheduleMaker({
   const handleCellClick = (day: Date, employeeId?: string) => {
     if (onAddShift) {
       onAddShift(day, employeeId);
+    }
+  };
+
+  const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
+    e.stopPropagation();
+    if (onEditShift) {
+      onEditShift(shift);
+    }
+  };
+
+  const handleDeleteShift = async (e: React.MouseEvent, shiftId: string) => {
+    e.stopPropagation();
+    if (!confirm("Are you sure you want to delete this shift?")) return;
+
+    try {
+      const res = await fetch(`/api/shifts/${shiftId}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        if (onShiftUpdate) onShiftUpdate();
+        if (!propShifts) fetchShifts();
+      } else {
+        alert(data.error || "Failed to delete shift");
+      }
+    } catch (error) {
+      console.error("Error deleting shift:", error);
+      alert("Failed to delete shift");
     }
   };
 
@@ -235,25 +265,44 @@ export default function ScheduleMaker({
                         <div
                           key={dayIndex}
                           className="p-2 min-h-[80px] bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
-                          onClick={() => handleCellClick(day, employee.id)}
-                          title="Click to add shift"
+                          onClick={() => dayShifts.length === 0 && handleCellClick(day, employee.id)}
+                          title={dayShifts.length > 0 ? "Click shift to edit" : "Click to add shift"}
                         >
                           {dayShifts.map((shift) => (
                             <div
                               key={shift.id}
-                              className={`text-xs p-2 rounded mb-1 ${
+                              className={`text-xs p-2 rounded mb-1 relative group/shift cursor-pointer ${
                                 shift.status === "needs_cover"
                                   ? "bg-red-100 text-red-700"
                                   : shift.status === "covered"
                                   ? "bg-green-100 text-green-700"
                                   : "bg-blue-100 text-blue-700"
                               }`}
+                              onClick={(e) => handleShiftClick(e, shift)}
                             >
                               <div className="font-medium">
                                 {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                               </div>
                               <div className="text-[10px] opacity-75">
                                 {calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs
+                              </div>
+                              
+                              {/* Edit/Delete buttons on hover */}
+                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                <button
+                                  onClick={(e) => handleShiftClick(e, shift)}
+                                  className="p-1 bg-white rounded shadow-sm hover:bg-gray-100"
+                                  title="Edit shift"
+                                >
+                                  <Edit2 className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={(e) => handleDeleteShift(e, shift.id)}
+                                  className="p-1 bg-white rounded shadow-sm hover:bg-red-100 text-red-600"
+                                  title="Delete shift"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
                               </div>
                             </div>
                           ))}
