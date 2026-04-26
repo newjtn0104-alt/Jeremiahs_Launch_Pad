@@ -67,7 +67,7 @@ export default function SchedulePage() {
   };
 
   const handleAddEmployee = () => {
-    alert("Add Employee clicked - opening modal");
+    console.log('Opening employee modal');
     setIsEmployeeModalOpen(true);
   };
 
