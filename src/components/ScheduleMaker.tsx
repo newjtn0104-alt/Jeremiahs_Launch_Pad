@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2, X } from "lucide-react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
 
 interface Employee {
@@ -49,6 +50,8 @@ export default function ScheduleMaker({
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedShifts, setSelectedShifts] = useState<Set<string>>(new Set());
+  const [isSelectMode, setIsSelectMode] = useState(false);
 
   // Use props if provided, otherwise fetch
   const weekStart = propWeekStart || currentWeek;
@@ -125,7 +128,9 @@ export default function ScheduleMaker({
 
   const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
     e.stopPropagation();
-    if (onEditShift) {
+    if (isSelectMode) {
+      toggleShiftSelection(shift.id);
+    } else if (onEditShift) {
       onEditShift(shift);
     }
   };
@@ -148,6 +153,73 @@ export default function ScheduleMaker({
     } catch (error) {
       console.error("Error deleting shift:", error);
       alert("Failed to delete shift");
+    }
+  };
+
+  // Bulk selection functions
+  const toggleShiftSelection = (shiftId: string) => {
+    setSelectedShifts((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(shiftId)) {
+        newSet.delete(shiftId);
+      } else {
+        newSet.add(shiftId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectMode = () => {
+    setIsSelectMode(!isSelectMode);
+    if (isSelectMode) {
+      setSelectedShifts(new Set()); // Clear selections when exiting select mode
+    }
+  };
+
+  const selectAllShifts = () => {
+    const allShiftIds = displayShifts.map(s => s.id);
+    setSelectedShifts(new Set(allShiftIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedShifts(new Set());
+  };
+
+  const deleteSelectedShifts = async () => {
+    if (selectedShifts.size === 0) return;
+    
+    if (!confirm(`Are you sure you want to delete ${selectedShifts.size} selected shifts?`)) return;
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const shiftId of selectedShifts) {
+      try {
+        const res = await fetch(`/api/shifts/${shiftId}`, {
+          method: "DELETE",
+        });
+        const data = await res.json();
+        if (data.success) {
+          successCount++;
+        } else {
+          failCount++;
+        }
+      } catch (error) {
+        console.error("Error deleting shift:", shiftId, error);
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      if (onShiftUpdate) onShiftUpdate();
+      if (!propShifts) fetchShifts();
+    }
+
+    setSelectedShifts(new Set());
+    setIsSelectMode(false);
+
+    if (failCount > 0) {
+      alert(`Deleted ${successCount} shifts. ${failCount} failed.`);
     }
   };
 
@@ -198,6 +270,20 @@ export default function ScheduleMaker({
               </div>
 
               <Button 
+                variant={isSelectMode ? "secondary" : "outline"}
+                onClick={toggleSelectMode}
+              >
+                {isSelectMode ? (
+                  <>
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </>
+                ) : (
+                  "Select Multiple"
+                )}
+              </Button>
+
+              <Button 
                 className="bg-blue-600 hover:bg-blue-700"
                 onClick={() => handleCellClick(weekDays[0])}
               >
@@ -207,6 +293,34 @@ export default function ScheduleMaker({
             </div>
           )}
         </div>
+
+        {/* Bulk Action Bar */}
+        {isSelectMode && (
+          <div className="mt-4 p-3 bg-slate-100 rounded-lg flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-medium text-slate-700">
+                {selectedShifts.size} shifts selected
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={selectAllShifts}>
+                  Select All
+                </Button>
+                <Button variant="outline" size="sm" onClick={clearSelection}>
+                  Clear
+                </Button>
+              </div>
+            </div>
+            <Button 
+              variant="destructive" 
+              size="sm"
+              disabled={selectedShifts.size === 0}
+              onClick={deleteSelectedShifts}
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Selected
+            </Button>
+          </div>
+        )}
       </CardHeader>
 
       <CardContent>
@@ -226,8 +340,8 @@ export default function ScheduleMaker({
                         ? "bg-blue-100"
                         : "bg-slate-50"
                     }`}
-                    onClick={() => handleCellClick(day)}
-                    title="Click to add shift for this day"
+                    onClick={() => !isSelectMode && handleCellClick(day)}
+                    title={isSelectMode ? "Select mode active" : "Click to add shift for this day"}
                   >
                     <div className="text-xs text-slate-500">{format(day, "EEE")}</div>
                     <div className="font-semibold">{format(day, "d")}</div>
@@ -265,14 +379,16 @@ export default function ScheduleMaker({
                         <div
                           key={dayIndex}
                           className="p-2 min-h-[80px] bg-slate-50 rounded-lg border border-slate-100 cursor-pointer hover:bg-slate-100 transition-colors group"
-                          onClick={() => dayShifts.length === 0 && handleCellClick(day, employee.id)}
-                          title={dayShifts.length > 0 ? "Click shift to edit" : "Click to add shift"}
+                          onClick={() => !isSelectMode && dayShifts.length === 0 && handleCellClick(day, employee.id)}
+                          title={isSelectMode ? "Click shift to select" : dayShifts.length > 0 ? "Click shift to edit" : "Click to add shift"}
                         >
                           {dayShifts.map((shift) => (
                             <div
                               key={shift.id}
                               className={`text-xs p-2 rounded mb-1 relative group/shift cursor-pointer ${
-                                shift.status === "needs_cover"
+                                selectedShifts.has(shift.id)
+                                  ? "ring-2 ring-blue-500 bg-blue-100 text-blue-700"
+                                  : shift.status === "needs_cover"
                                   ? "bg-red-100 text-red-700"
                                   : shift.status === "covered"
                                   ? "bg-green-100 text-green-700"
@@ -280,34 +396,46 @@ export default function ScheduleMaker({
                               }`}
                               onClick={(e) => handleShiftClick(e, shift)}
                             >
-                              <div className="font-medium">
+                              {/* Checkbox in select mode */}
+                              {isSelectMode && (
+                                <div className="absolute top-1 left-1">
+                                  <Checkbox 
+                                    checked={selectedShifts.has(shift.id)}
+                                    className="w-3 h-3"
+                                  />
+                                </div>
+                              )}
+                              
+                              <div className={`font-medium ${isSelectMode ? "pl-4" : ""}`}>
                                 {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                               </div>
-                              <div className="text-[10px] opacity-75">
+                              <div className={`text-[10px] opacity-75 ${isSelectMode ? "pl-4" : ""}`}>
                                 {calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs
                               </div>
                               
-                              {/* Edit/Delete buttons on hover */}
-                              <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
-                                <button
-                                  onClick={(e) => handleShiftClick(e, shift)}
-                                  className="p-1 bg-white rounded shadow-sm hover:bg-gray-100"
-                                  title="Edit shift"
-                                >
-                                  <Edit2 className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={(e) => handleDeleteShift(e, shift.id)}
-                                  className="p-1 bg-white rounded shadow-sm hover:bg-red-100 text-red-600"
-                                  title="Delete shift"
-                                >
-                                  <Trash2 className="w-3 h-3" />
-                                </button>
-                              </div>
+                              {/* Edit/Delete buttons on hover (only when not in select mode) */}
+                              {!isSelectMode && (
+                                <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => handleShiftClick(e, shift)}
+                                    className="p-1 bg-white rounded shadow-sm hover:bg-gray-100"
+                                    title="Edit shift"
+                                  >
+                                    <Edit2 className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => handleDeleteShift(e, shift.id)}
+                                    className="p-1 bg-white rounded shadow-sm hover:bg-red-100 text-red-600"
+                                    title="Delete shift"
+                                  >
+                                    <Trash2 className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              )}
                             </div>
                           ))}
 
-                          {dayShifts.length === 0 && (
+                          {dayShifts.length === 0 && !isSelectMode && (
                             <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <Plus className="w-5 h-5 text-slate-400" />
                             </div>
