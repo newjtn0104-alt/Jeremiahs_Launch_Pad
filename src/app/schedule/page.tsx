@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import ScheduleMaker from '@/components/ScheduleMaker';
 import AddEmployeeModal from '@/components/AddEmployeeModal';
 import AddShiftModal from '@/components/AddShiftModal';
+import ClientOnly from '@/components/ClientOnly';
 import { Button } from '@/components/ui/button';
 import { Plus, Users, CalendarDays } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
@@ -175,20 +176,24 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* Modals */}
-      <AddEmployeeModal
-        isOpen={isEmployeeModalOpen}
-        onClose={() => setIsEmployeeModalOpen(false)}
-        onSuccess={handleEmployeeAdded}
-      />
-      <AddShiftModal
-        isOpen={isShiftModalOpen}
-        onClose={() => setIsShiftModalOpen(false)}
-        onSuccess={handleShiftUpdate}
-        employees={employees}
-        weekStart={weekStart}
-        store={store}
-      />
+      {/* Modals - wrapped in ClientOnly to prevent hydration issues */}
+      <ClientOnly>
+        <AddEmployeeModal
+          isOpen={isEmployeeModalOpen}
+          onClose={() => setIsEmployeeModalOpen(false)}
+          onSuccess={handleEmployeeAdded}
+        />
+      </ClientOnly>
+      <ClientOnly>
+        <AddShiftModal
+          isOpen={isShiftModalOpen}
+          onClose={() => setIsShiftModalOpen(false)}
+          onSuccess={handleShiftUpdate}
+          employees={employees}
+          weekStart={weekStart}
+          store={store}
+        />
+      </ClientOnly>
     </div>
   );
 }
