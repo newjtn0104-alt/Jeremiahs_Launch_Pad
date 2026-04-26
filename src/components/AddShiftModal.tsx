@@ -11,13 +11,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X } from "lucide-react";
-import { format } from "date-fns";
+import { X, Repeat } from "lucide-react";
+import { format, addDays } from "date-fns";
 
 interface Employee {
   id: string;
   first_name: string;
   last_name: string;
+  position?: string;
 }
 
 interface AddShiftModalProps {
@@ -30,6 +31,26 @@ interface AddShiftModalProps {
   preselectedDate?: Date | null;
   preselectedEmployeeId?: string | null;
 }
+
+const POSITIONS = [
+  "Server",
+  "Cashier",
+  "Shift Leader",
+  "Assistant Manager",
+  "Store Manager",
+  "Production",
+  "Prep"
+];
+
+const WEEKDAYS = [
+  { key: "mon", label: "M", full: "Monday" },
+  { key: "tue", label: "T", full: "Tuesday" },
+  { key: "wed", label: "W", full: "Wednesday" },
+  { key: "thu", label: "T", full: "Thursday" },
+  { key: "fri", label: "F", full: "Friday" },
+  { key: "sat", label: "S", full: "Saturday" },
+  { key: "sun", label: "S", full: "Sunday" },
+];
 
 export default function AddShiftModal({
   isOpen,
@@ -48,8 +69,11 @@ export default function AddShiftModal({
     start_time: "09:00",
     end_time: "17:00",
     store: store,
+    position: "",
     notes: "",
   });
+  const [recurringDays, setRecurringDays] = useState<string[]>([]);
+  const [isRecurring, setIsRecurring] = useState(false);
 
   // Generate week days for date selection
   const weekDays = Array.from({ length: 7 }, (_, i) => {
@@ -58,58 +82,101 @@ export default function AddShiftModal({
     return {
       value: format(date, "yyyy-MM-dd"),
       label: format(date, "EEE, MMM d"),
+      dayKey: WEEKDAYS[i].key,
     };
   });
 
   // Update form when preselected values change
   useEffect(() => {
     if (preselectedDate) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         date: format(preselectedDate, "yyyy-MM-dd"),
       }));
+      
+      // Auto-select the corresponding day for recurring
+      const dayIndex = weekDays.findIndex(
+        (d) => d.value === format(preselectedDate, "yyyy-MM-dd")
+      );
+      if (dayIndex >= 0) {
+        setRecurringDays([WEEKDAYS[dayIndex].key]);
+      }
     }
     if (preselectedEmployeeId) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         employee_id: preselectedEmployeeId,
       }));
+      
+      // Auto-fill position from employee
+      const emp = employees.find((e) => e.id === preselectedEmployeeId);
+      if (emp?.position) {
+        setFormData((prev) => ({ ...prev, position: emp.position! }));
+      }
     }
     // Update store when it changes
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       store: store,
     }));
-  }, [preselectedDate, preselectedEmployeeId, store]);
+  }, [preselectedDate, preselectedEmployeeId, store, employees]);
+
+  const toggleRecurringDay = (dayKey: string) => {
+    setRecurringDays((prev) =>
+      prev.includes(dayKey)
+        ? prev.filter((d) => d !== dayKey)
+        : [...prev, dayKey]
+    );
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      const res = await fetch("/api/shifts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
-      });
+      // If recurring, create shifts for all selected days
+      const datesToCreate = isRecurring && recurringDays.length > 0
+        ? recurringDays.map((dayKey) => {
+            const dayIndex = WEEKDAYS.findIndex((d) => d.key === dayKey);
+            const date = addDays(weekStart, dayIndex);
+            return format(date, "yyyy-MM-dd");
+          })
+        : [formData.date];
 
-      const data = await res.json();
-
-      if (data.success) {
-        onSuccess();
-        onClose();
-        // Reset form
-        setFormData({
-          employee_id: "",
-          date: format(weekStart, "yyyy-MM-dd"),
-          start_time: "09:00",
-          end_time: "17:00",
-          store: store,
-          notes: "",
+      // Create shifts for all selected dates
+      for (const date of datesToCreate) {
+        const res = await fetch("/api/shifts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...formData,
+            date,
+          }),
         });
-      } else {
-        alert(data.error || "Failed to add shift");
+
+        const data = await res.json();
+
+        if (!data.success) {
+          alert(data.error || "Failed to add shift for " + date);
+          setLoading(false);
+          return;
+        }
       }
+
+      onSuccess();
+      onClose();
+      // Reset form
+      setFormData({
+        employee_id: "",
+        date: format(weekStart, "yyyy-MM-dd"),
+        start_time: "09:00",
+        end_time: "17:00",
+        store: store,
+        position: "",
+        notes: "",
+      });
+      setRecurringDays([]);
+      setIsRecurring(false);
     } catch (error) {
       console.error("Error adding shift:", error);
       alert("Failed to add shift");
@@ -119,6 +186,8 @@ export default function AddShiftModal({
   };
 
   if (!isOpen) return null;
+
+  const selectedEmployee = employees.find((e) => e.id === formData.employee_id);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -138,9 +207,14 @@ export default function AddShiftModal({
             <Label>Employee *</Label>
             <Select
               value={formData.employee_id}
-              onValueChange={(value) =>
-                setFormData({ ...formData, employee_id: value })
-              }
+              onValueChange={(value) => {
+                setFormData({ ...formData, employee_id: value });
+                // Auto-fill position from employee
+                const emp = employees.find((e) => e.id === value);
+                if (emp?.position) {
+                  setFormData((prev) => ({ ...prev, position: emp.position! }));
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select employee" />
@@ -149,6 +223,7 @@ export default function AddShiftModal({
                 {employees.map((emp) => (
                   <SelectItem key={emp.id} value={emp.id}>
                     {emp.first_name} {emp.last_name}
+                    {emp.position && ` (${emp.position})`}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -156,12 +231,43 @@ export default function AddShiftModal({
           </div>
 
           <div className="space-y-2">
+            <Label>Position</Label>
+            <Select
+              value={formData.position}
+              onValueChange={(value) =>
+                setFormData({ ...formData, position: value })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select position" />
+              </SelectTrigger>
+              <SelectContent>
+                {POSITIONS.map((pos) => (
+                  <SelectItem key={pos} value={pos}>
+                    {pos}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {selectedEmployee?.position && (
+              <p className="text-xs text-gray-500">
+                Employee default: {selectedEmployee.position}
+              </p>
+            )}
+          </div>
+
+          <div className="space-y-2">
             <Label>Date *</Label>
             <Select
               value={formData.date}
-              onValueChange={(value) =>
-                setFormData({ ...formData, date: value })
-              }
+              onValueChange={(value) => {
+                setFormData({ ...formData, date: value });
+                // Auto-select the day for recurring
+                const dayIndex = weekDays.findIndex((d) => d.value === value);
+                if (dayIndex >= 0 && !isRecurring) {
+                  setRecurringDays([WEEKDAYS[dayIndex].key]);
+                }
+              }}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -174,6 +280,51 @@ export default function AddShiftModal({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+
+          {/* Recurring Shift Toggle */}
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="recurring"
+                checked={isRecurring}
+                onChange={(e) => setIsRecurring(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300"
+              />
+              <Label htmlFor="recurring" className="mb-0 flex items-center gap-2">
+                <Repeat className="w-4 h-4" />
+                Make this a recurring shift
+              </Label>
+            </div>
+
+            {isRecurring && (
+              <div className="space-y-2">
+                <Label className="text-sm text-gray-600">Select days for this week:</Label>
+                <div className="flex gap-1">
+                  {WEEKDAYS.map((day) => (
+                    <button
+                      key={day.key}
+                      type="button"
+                      onClick={() => toggleRecurringDay(day.key)}
+                      className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${
+                        recurringDays.includes(day.key)
+                          ? "bg-blue-600 text-white"
+                          : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+                      }`}
+                      title={day.full}
+                    >
+                      {day.label}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500">
+                  {recurringDays.length > 0
+                    ? `Will create ${recurringDays.length} shift(s)`
+                    : "Select at least one day"}
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -237,8 +388,17 @@ export default function AddShiftModal({
             <Button type="button" variant="outline" onClick={onClose} className="flex-1">
               Cancel
             </Button>
-            <Button type="submit" disabled={loading} className="flex-1">
-              {loading ? "Adding..." : "Add Shift"}
+            <Button 
+              type="submit" 
+              disabled={loading || (isRecurring && recurringDays.length === 0)} 
+              className="flex-1"
+            >
+              {loading 
+                ? "Adding..." 
+                : isRecurring 
+                  ? `Add ${recurringDays.length} Shifts` 
+                  : "Add Shift"
+              }
             </Button>
           </div>
         </form>

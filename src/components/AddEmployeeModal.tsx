@@ -19,6 +19,16 @@ interface AddEmployeeModalProps {
   onSuccess: () => void;
 }
 
+const POSITIONS = [
+  "Server",
+  "Cashier", 
+  "Shift Leader",
+  "Assistant Manager",
+  "Store Manager",
+  "Production",
+  "Prep"
+];
+
 export default function AddEmployeeModal({
   isOpen,
   onClose,
@@ -31,6 +41,7 @@ export default function AddEmployeeModal({
     email: "",
     store: "Pembroke Pines",
     role: "employee",
+    position: "Server",
     wage: "11.00",
     password: "",
   });
@@ -61,6 +72,7 @@ export default function AddEmployeeModal({
           email: "",
           store: "Pembroke Pines",
           role: "employee",
+          position: "Server",
           wage: "11.00",
           password: "",
         });
@@ -161,6 +173,29 @@ export default function AddEmployeeModal({
               </Select>
             </div>
             <div className="space-y-2">
+              <Label>Position *</Label>
+              <Select
+                value={formData.position}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, position: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {POSITIONS.map((pos) => (
+                    <SelectItem key={pos} value={pos}>
+                      {pos}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
               <Label>Role *</Label>
               <Select
                 value={formData.role}
@@ -177,20 +212,19 @@ export default function AddEmployeeModal({
                 </SelectContent>
               </Select>
             </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="wage">Hourly Wage ($)</Label>
-            <Input
-              id="wage"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.wage}
-              onChange={(e) =>
-                setFormData({ ...formData, wage: e.target.value })
-              }
-            />
+            <div className="space-y-2">
+              <Label htmlFor="wage">Hourly Wage ($)</Label>
+              <Input
+                id="wage"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.wage}
+                onChange={(e) =>
+                  setFormData({ ...formData, wage: e.target.value })
+                }
+              />
+            </div>
           </div>
 
           <div className="flex gap-3 pt-4">
