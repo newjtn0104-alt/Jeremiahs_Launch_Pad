@@ -6,9 +6,10 @@ import AddEmployeeModal from '@/components/AddEmployeeModal';
 import AddShiftModal from '@/components/AddShiftModal';
 import EditShiftModal from '@/components/EditShiftModal';
 import DailyScheduleView from '@/components/DailyScheduleView';
+import BulkImportEmployeesModal from '@/components/BulkImportEmployeesModal';
 import ClientOnly from '@/components/ClientOnly';
 import { Button } from '@/components/ui/button';
-import { Plus, Users, CalendarDays, ChevronLeft, LayoutDashboard, Calendar, Users2, UserPlus, ClipboardList, ChevronDown, ChevronRight, Clock, CalendarX, CalendarCheck, RefreshCw } from 'lucide-react';
+import { Plus, Users, CalendarDays, ChevronLeft, LayoutDashboard, Calendar, Users2, UserPlus, ClipboardList, ChevronDown, ChevronRight, Clock, CalendarX, CalendarCheck, RefreshCw, Upload } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
 
 interface Employee {
@@ -40,6 +41,7 @@ export default function SchedulePage() {
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [store, setStore] = useState("Pembroke Pines");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
@@ -87,6 +89,10 @@ export default function SchedulePage() {
 
   const handleAddEmployee = () => {
     setIsEmployeeModalOpen(true);
+  };
+
+  const handleBulkImport = () => {
+    setIsBulkImportOpen(true);
   };
 
   const handleAddShift = () => {
@@ -323,6 +329,14 @@ export default function SchedulePage() {
                       Add Employee
                     </Button>
                     <Button
+                      variant="outline"
+                      onClick={handleBulkImport}
+                      className="flex items-center gap-2"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Bulk Import
+                    </Button>
+                    <Button
                       onClick={handleAddShift}
                       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
                     >
@@ -451,6 +465,13 @@ export default function SchedulePage() {
         <AddEmployeeModal
           isOpen={isEmployeeModalOpen}
           onClose={() => setIsEmployeeModalOpen(false)}
+          onSuccess={handleEmployeeAdded}
+        />
+      </ClientOnly>
+      <ClientOnly>
+        <BulkImportEmployeesModal
+          isOpen={isBulkImportOpen}
+          onClose={() => setIsBulkImportOpen(false)}
           onSuccess={handleEmployeeAdded}
         />
       </ClientOnly>
