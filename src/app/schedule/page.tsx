@@ -5,9 +5,10 @@ import ScheduleMaker from '@/components/ScheduleMaker';
 import AddEmployeeModal from '@/components/AddEmployeeModal';
 import AddShiftModal from '@/components/AddShiftModal';
 import EditShiftModal from '@/components/EditShiftModal';
+import DailyScheduleView from '@/components/DailyScheduleView';
 import ClientOnly from '@/components/ClientOnly';
 import { Button } from '@/components/ui/button';
-import { Plus, Users, CalendarDays } from 'lucide-react';
+import { Plus, Users, CalendarDays, ChevronLeft } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
 
 interface Employee {
@@ -41,6 +42,9 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  
+  // Lifted daily view state - persists across data refreshes
+  const [dailyViewDate, setDailyViewDate] = useState<Date | null>(null);
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -98,10 +102,20 @@ export default function SchedulePage() {
 
   const handleShiftUpdate = () => {
     fetchData();
+    // Note: dailyViewDate stays unchanged - daily view remains open
   };
 
   const handleEmployeeAdded = () => {
     fetchData();
+  };
+
+  // Daily view handlers
+  const handleOpenDailyView = (date: Date) => {
+    setDailyViewDate(date);
+  };
+
+  const handleCloseDailyView = () => {
+    setDailyViewDate(null);
   };
 
   return (
@@ -113,78 +127,110 @@ export default function SchedulePage() {
             <div>
               <h1 className="text-2xl font-bold text-gray-900">Schedule Maker</h1>
               <p className="text-sm text-gray-500 mt-1">
-                Week of {format(weekStart, 'MMM d')} - {format(addDays(weekStart, 6), 'MMM d, yyyy')}
+                {dailyViewDate 
+                  ? format(dailyViewDate, 'EEEE, MMMM d, yyyy')
+                  : `Week of ${format(weekStart, 'MMM d')} - ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
+                }
               </p>
             </div>
             <div className="flex gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setCurrentWeek(new Date())}
-                className="flex items-center gap-2"
-              >
-                <CalendarDays className="w-4 h-4" />
-                Today
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleAddEmployee}
-                className="flex items-center gap-2"
-              >
-                <Users className="w-4 h-4" />
-                Add Employee
-              </Button>
-              <Button
-                onClick={handleAddShift}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
-              >
-                <Plus className="w-4 h-4" />
-                Add Shift
-              </Button>
+              {dailyViewDate ? (
+                <Button
+                  variant="outline"
+                  onClick={handleCloseDailyView}
+                  className="flex items-center gap-2"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  Back to Weekly View
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setCurrentWeek(new Date())}
+                    className="flex items-center gap-2"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    Today
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleAddEmployee}
+                    className="flex items-center gap-2"
+                  >
+                    <Users className="w-4 h-4" />
+                    Add Employee
+                  </Button>
+                  <Button
+                    onClick={handleAddShift}
+                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Add Shift
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Week Navigation */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-        <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-4">
-          <Button
-            variant="ghost"
-            onClick={() => setCurrentWeek(addDays(currentWeek, -7))}
-          >
-            ← Previous Week
-          </Button>
-          <div className="flex gap-2">
-            {weekDays.map((day, i) => (
-              <div
-                key={i}
-                className={`text-center px-3 py-2 rounded-lg min-w-[60px] ${
-                  format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                    ? 'bg-blue-100 text-blue-700'
-                    : 'text-gray-600'
-                }`}
-              >
-                <div className="text-xs font-medium">{format(day, 'EEE')}</div>
-                <div className="text-lg font-bold">{format(day, 'd')}</div>
-              </div>
-            ))}
+      {/* Week Navigation - only show in weekly view */}
+      {!dailyViewDate && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-4">
+            <Button
+              variant="ghost"
+              onClick={() => setCurrentWeek(addDays(currentWeek, -7))}
+            >
+              ← Previous Week
+            </Button>
+            <div className="flex gap-2">
+              {weekDays.map((day, i) => (
+                <div
+                  key={i}
+                  className={`text-center px-3 py-2 rounded-lg min-w-[60px] cursor-pointer hover:bg-slate-100 transition-colors ${
+                    format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600'
+                  }`}
+                  onClick={() => handleOpenDailyView(day)}
+                  title="Click for daily timeline view"
+                >
+                  <div className="text-xs font-medium">{format(day, 'EEE')}</div>
+                  <div className="text-lg font-bold">{format(day, 'd')}</div>
+                </div>
+              ))}
+            </div>
+            <Button
+              variant="ghost"
+              onClick={() => setCurrentWeek(addDays(currentWeek, 7))}
+            >
+              Next Week →
+            </Button>
           </div>
-          <Button
-            variant="ghost"
-            onClick={() => setCurrentWeek(addDays(currentWeek, 7))}
-          >
-            Next Week →
-          </Button>
         </div>
-      </div>
+      )}
 
-      {/* Schedule Grid */}
+      {/* Main Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         {loading ? (
           <div className="flex items-center justify-center h-96">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
           </div>
+        ) : dailyViewDate ? (
+          /* Daily View */
+          <DailyScheduleView
+            date={dailyViewDate}
+            employees={employees}
+            shifts={shifts}
+            onClose={handleCloseDailyView}
+            onShiftUpdate={handleShiftUpdate}
+            onEditShift={handleEditShift}
+            onAddShift={handleCellClick}
+          />
         ) : (
+          /* Weekly View */
           <ScheduleMaker
             employees={employees}
             shifts={shifts}
@@ -192,6 +238,7 @@ export default function SchedulePage() {
             onShiftUpdate={handleShiftUpdate}
             onAddShift={handleCellClick}
             onEditShift={handleEditShift}
+            onDayHeaderClick={handleOpenDailyView}
           />
         )}
       </div>

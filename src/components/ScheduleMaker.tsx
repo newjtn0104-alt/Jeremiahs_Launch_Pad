@@ -7,7 +7,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Calendar, ChevronLeft, ChevronRight, Plus, Clock, Store, User, Edit2, Trash2, X, GripVertical, LayoutGrid } from "lucide-react";
 import { format, addDays, startOfWeek, addWeeks, subWeeks } from "date-fns";
-import DailyScheduleView from "./DailyScheduleView";
 
 interface Employee {
   id: string;
@@ -36,6 +35,7 @@ interface ScheduleMakerProps {
   onShiftUpdate?: () => void;
   onAddShift?: (date: Date, employeeId?: string) => void;
   onEditShift?: (shift: Shift) => void;
+  onDayHeaderClick?: (date: Date) => void;
 }
 
 export default function ScheduleMaker({
@@ -45,6 +45,7 @@ export default function ScheduleMaker({
   onShiftUpdate,
   onAddShift,
   onEditShift,
+  onDayHeaderClick,
 }: ScheduleMakerProps) {
   const [currentWeek, setCurrentWeek] = useState(startOfWeek(new Date(), { weekStartsOn: 1 }));
   const [store, setStore] = useState<string>("Pembroke Pines");
@@ -53,7 +54,6 @@ export default function ScheduleMaker({
   const [loading, setLoading] = useState(true);
   const [selectedShifts, setSelectedShifts] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
-  const [dailyViewDate, setDailyViewDate] = useState<Date | null>(null);
   
   // Drag and drop state
   const [draggedShift, setDraggedShift] = useState<Shift | null>(null);
@@ -133,20 +133,9 @@ export default function ScheduleMaker({
   };
 
   const handleDayHeaderClick = (day: Date) => {
-    setDailyViewDate(day);
-  };
-
-  const handleCloseDailyView = () => {
-    setDailyViewDate(null);
-  };
-
-  // Handle shift updates - stays in daily view
-  const handleShiftUpdate = () => {
-    // Call parent's update handler
-    if (onShiftUpdate) onShiftUpdate();
-    // Refresh local data if not using props
-    if (!propShifts) fetchShifts();
-    // Note: We do NOT close the daily view - it stays open
+    if (onDayHeaderClick) {
+      onDayHeaderClick(day);
+    }
   };
 
   const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
@@ -168,7 +157,8 @@ export default function ScheduleMaker({
       });
       const data = await res.json();
       if (data.success) {
-        handleShiftUpdate(); // Use our handler that stays in daily view
+        if (onShiftUpdate) onShiftUpdate();
+        if (!propShifts) fetchShifts();
       } else {
         alert(data.error || "Failed to delete shift");
       }
@@ -182,7 +172,6 @@ export default function ScheduleMaker({
   const handleDragStart = (e: React.DragEvent, shift: Shift) => {
     setDraggedShift(shift);
     e.dataTransfer.effectAllowed = "move";
-    // Set a transparent drag image or use default
   };
 
   const handleDragOver = (e: React.DragEvent, employeeId: string, date: Date) => {
@@ -203,7 +192,6 @@ export default function ScheduleMaker({
     
     const newDate = format(date, "yyyy-MM-dd");
     
-    // Only update if something changed
     if (draggedShift.employee_id === employeeId && draggedShift.date === newDate) {
       setDraggedShift(null);
       return;
@@ -221,7 +209,8 @@ export default function ScheduleMaker({
       
       const data = await res.json();
       if (data.success) {
-        handleShiftUpdate(); // Use our handler that stays in daily view
+        if (onShiftUpdate) onShiftUpdate();
+        if (!propShifts) fetchShifts();
       } else {
         alert(data.error || "Failed to move shift");
       }
@@ -249,7 +238,7 @@ export default function ScheduleMaker({
   const toggleSelectMode = () => {
     setIsSelectMode(!isSelectMode);
     if (isSelectMode) {
-      setSelectedShifts(new Set()); // Clear selections when exiting select mode
+      setSelectedShifts(new Set());
     }
   };
 
@@ -288,7 +277,8 @@ export default function ScheduleMaker({
     }
 
     if (successCount > 0) {
-      handleShiftUpdate(); // Use our handler that stays in daily view
+      if (onShiftUpdate) onShiftUpdate();
+      if (!propShifts) fetchShifts();
     }
 
     setSelectedShifts(new Set());
@@ -298,21 +288,6 @@ export default function ScheduleMaker({
       alert(`Deleted ${successCount} shifts. ${failCount} failed.`);
     }
   };
-
-  // If daily view is open, show it
-  if (dailyViewDate) {
-    return (
-      <DailyScheduleView
-        date={dailyViewDate}
-        employees={displayEmployees}
-        shifts={displayShifts}
-        onClose={handleCloseDailyView}
-        onShiftUpdate={handleShiftUpdate}
-        onEditShift={onEditShift}
-        onAddShift={onAddShift}
-      />
-    );
-  }
 
   return (
     <Card className="w-full">
@@ -509,14 +484,12 @@ export default function ScheduleMaker({
                               } ${draggedShift?.id === shift.id ? "opacity-50" : ""}`}
                               onClick={(e) => handleShiftClick(e, shift)}
                             >
-                              {/* Drag handle */}
                               {!isSelectMode && (
                                 <div className="absolute top-1 left-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
                                   <GripVertical className="w-3 h-3 text-slate-400" />
                                 </div>
                               )}
                               
-                              {/* Checkbox in select mode */}
                               {isSelectMode && (
                                 <div className="absolute top-1 left-1">
                                   <Checkbox 
@@ -533,7 +506,6 @@ export default function ScheduleMaker({
                                 {calculateHours(shift.start_time, shift.end_time).toFixed(1)} hrs
                               </div>
                               
-                              {/* Edit/Delete buttons on hover (only when not in select mode) */}
                               {!isSelectMode && (
                                 <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover/shift:opacity-100 transition-opacity">
                                   <button
