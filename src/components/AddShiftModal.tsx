@@ -11,7 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Repeat } from "lucide-react";
+import { X, Repeat, Clock } from "lucide-react";
 import { format, addDays } from "date-fns";
 
 interface Employee {
@@ -52,6 +52,28 @@ const WEEKDAYS = [
   { key: "sun", label: "S", full: "Sunday" },
 ];
 
+// Generate time options in 15-minute intervals from 6 AM to 12 AM
+const generateTimeOptions = () => {
+  const options: { value: string; label: string }[] = [];
+  for (let hour = 6; hour <= 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      if (hour === 24 && minute > 0) continue;
+      const h = hour.toString().padStart(2, '0');
+      const m = minute.toString().padStart(2, '0');
+      const value = `${h}:${m}`;
+      
+      const displayHour = hour % 12 || 12;
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const label = `${displayHour}:${m} ${ampm}`;
+      
+      options.push({ value, label });
+    }
+  }
+  return options;
+};
+
+const TIME_OPTIONS = generateTimeOptions();
+
 export default function AddShiftModal({
   isOpen,
   onClose,
@@ -75,7 +97,6 @@ export default function AddShiftModal({
   const [recurringDays, setRecurringDays] = useState<string[]>([]);
   const [isRecurring, setIsRecurring] = useState(false);
 
-  // Generate week days for date selection
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const date = new Date(weekStart);
     date.setDate(date.getDate() + i);
@@ -86,7 +107,6 @@ export default function AddShiftModal({
     };
   });
 
-  // Update form when preselected values change
   useEffect(() => {
     if (preselectedDate) {
       setFormData((prev) => ({
@@ -94,7 +114,6 @@ export default function AddShiftModal({
         date: format(preselectedDate, "yyyy-MM-dd"),
       }));
       
-      // Auto-select the corresponding day for recurring
       const dayIndex = weekDays.findIndex(
         (d) => d.value === format(preselectedDate, "yyyy-MM-dd")
       );
@@ -108,13 +127,11 @@ export default function AddShiftModal({
         employee_id: preselectedEmployeeId,
       }));
       
-      // Auto-fill position from employee
       const emp = employees.find((e) => e.id === preselectedEmployeeId);
       if (emp?.position) {
         setFormData((prev) => ({ ...prev, position: emp.position! }));
       }
     }
-    // Update store when it changes
     setFormData((prev) => ({
       ...prev,
       store: store,
@@ -134,7 +151,6 @@ export default function AddShiftModal({
     setLoading(true);
 
     try {
-      // If recurring, create shifts for all selected days
       const datesToCreate = isRecurring && recurringDays.length > 0
         ? recurringDays.map((dayKey) => {
             const dayIndex = WEEKDAYS.findIndex((d) => d.key === dayKey);
@@ -143,7 +159,6 @@ export default function AddShiftModal({
           })
         : [formData.date];
 
-      // Create shifts for all selected dates
       for (const date of datesToCreate) {
         const res = await fetch("/api/shifts", {
           method: "POST",
@@ -165,7 +180,6 @@ export default function AddShiftModal({
 
       onSuccess();
       onClose();
-      // Reset form
       setFormData({
         employee_id: "",
         date: format(weekStart, "yyyy-MM-dd"),
@@ -209,7 +223,6 @@ export default function AddShiftModal({
               value={formData.employee_id}
               onValueChange={(value) => {
                 setFormData({ ...formData, employee_id: value });
-                // Auto-fill position from employee
                 const emp = employees.find((e) => e.id === value);
                 if (emp?.position) {
                   setFormData((prev) => ({ ...prev, position: emp.position! }));
@@ -262,7 +275,6 @@ export default function AddShiftModal({
               value={formData.date}
               onValueChange={(value) => {
                 setFormData({ ...formData, date: value });
-                // Auto-select the day for recurring
                 const dayIndex = weekDays.findIndex((d) => d.value === value);
                 if (dayIndex >= 0 && !isRecurring) {
                   setRecurringDays([WEEKDAYS[dayIndex].key]);
@@ -282,7 +294,6 @@ export default function AddShiftModal({
             </Select>
           </div>
 
-          {/* Recurring Shift Toggle */}
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <input
@@ -329,28 +340,46 @@ export default function AddShiftModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start_time">Start Time *</Label>
-              <Input
-                id="start_time"
-                type="time"
+              <Label>Start Time *</Label>
+              <Select
                 value={formData.start_time}
-                onChange={(e) =>
-                  setFormData({ ...formData, start_time: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, start_time: value })
                 }
-                required
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <Clock className="w-4 h-4 mr-2 text-slate-400" />
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {TIME_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_time">End Time *</Label>
-              <Input
-                id="end_time"
-                type="time"
+              <Label>End Time *</Label>
+              <Select
                 value={formData.end_time}
-                onChange={(e) =>
-                  setFormData({ ...formData, end_time: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, end_time: value })
                 }
-                required
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <Clock className="w-4 h-4 mr-2 text-slate-400" />
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {TIME_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 

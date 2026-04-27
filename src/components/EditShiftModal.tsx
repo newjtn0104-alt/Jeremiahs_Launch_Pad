@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,8 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { X, Trash2 } from "lucide-react";
-import { format } from "date-fns";
+import { X, Trash2, Clock } from "lucide-react";
 
 interface Employee {
   id: string;
@@ -38,6 +37,29 @@ interface EditShiftModalProps {
   shift: Shift | null;
   employees: Employee[];
 }
+
+// Generate time options in 15-minute intervals from 6 AM to 12 AM
+const generateTimeOptions = () => {
+  const options: { value: string; label: string }[] = [];
+  for (let hour = 6; hour <= 24; hour++) {
+    for (let minute = 0; minute < 60; minute += 15) {
+      if (hour === 24 && minute > 0) continue;
+      const h = hour.toString().padStart(2, '0');
+      const m = minute.toString().padStart(2, '0');
+      const value = `${h}:${m}`;
+      
+      // Format label as 12-hour time
+      const displayHour = hour % 12 || 12;
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const label = `${displayHour}:${m} ${ampm}`;
+      
+      options.push({ value, label });
+    }
+  }
+  return options;
+};
+
+const TIME_OPTIONS = generateTimeOptions();
 
 export default function EditShiftModal({
   isOpen,
@@ -178,28 +200,46 @@ export default function EditShiftModal({
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="start_time">Start Time *</Label>
-              <Input
-                id="start_time"
-                type="time"
+              <Label>Start Time *</Label>
+              <Select
                 value={formData.start_time}
-                onChange={(e) =>
-                  setFormData({ ...formData, start_time: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, start_time: value })
                 }
-                required
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <Clock className="w-4 h-4 mr-2 text-slate-400" />
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {TIME_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="end_time">End Time *</Label>
-              <Input
-                id="end_time"
-                type="time"
+              <Label>End Time *</Label>
+              <Select
                 value={formData.end_time}
-                onChange={(e) =>
-                  setFormData({ ...formData, end_time: e.target.value })
+                onValueChange={(value) =>
+                  setFormData({ ...formData, end_time: value })
                 }
-                required
-              />
+              >
+                <SelectTrigger className="w-full">
+                  <Clock className="w-4 h-4 mr-2 text-slate-400" />
+                  <SelectValue placeholder="Select time" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[200px]">
+                  {TIME_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
