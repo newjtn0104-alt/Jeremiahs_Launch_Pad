@@ -59,20 +59,24 @@ export default function DailyScheduleView({
   // Visual state for smooth dragging - stores temporary positions during drag
   const [visualPositions, setVisualPositions] = useState<Map<string, {start: string, end: string}>>(new Map());
   
+  // Track which shifts we've saved but not yet received updated data for
+  const [pendingSave, setPendingSave] = useState<string | null>(null);
+  
   const containerRef = useRef<HTMLDivElement>(null);
 
   const dateStr = format(date, "yyyy-MM-dd");
   
   // Merge original shifts with visual positions for display
+  // Keep visual position if: actively resizing OR just saved but parent hasn't updated yet
   const displayShifts = useMemo(() => {
     return shifts.map(shift => {
       const visual = visualPositions.get(shift.id);
-      if (visual) {
+      if (visual && (resizing?.shift.id === shift.id || pendingSave === shift.id)) {
         return { ...shift, start_time: visual.start, end_time: visual.end };
       }
       return shift;
     });
-  }, [shifts, visualPositions]);
+  }, [shifts, visualPositions, resizing, pendingSave]);
 
   const dayShifts = useMemo(() => {
     return displayShifts.filter((s) => s.date === dateStr);
@@ -147,6 +151,7 @@ export default function DailyScheduleView({
     e.stopPropagation();
     
     setResizing({ shift, edge });
+    setPendingSave(null); // Clear any pending save
     
     // Initialize visual position with current values
     setVisualPositions(prev => new Map(prev.set(shift.id, {
@@ -197,6 +202,10 @@ export default function DailyScheduleView({
       if (resizing) {
         const visualPos = visualPositions.get(resizing.shift.id);
         if (visualPos) {
+          // Mark this shift as pending save
+          setPendingSave(resizing.shift.id);
+          setResizing(null);
+          
           const updates: Partial<Shift> = {};
           if (resizing.edge === 'start') {
             updates.start_time = visualPos.start;
@@ -212,20 +221,36 @@ export default function DailyScheduleView({
             });
 
             const data = await res.json();
-            if (!data.success) {
-              // Revert on error
+            
+            // Clear visual position and pending save after successful API call
+            setVisualPositions(prev => {
+              const next = new Map(prev);
+              next.delete(resizing.shift.id);
+              return next;
+            });
+            setPendingSave(null);
+            
+            if (data.success) {
+              // Trigger parent refresh to get updated data
               if (onShiftUpdate) onShiftUpdate();
+            } else {
+              alert(data.error || "Failed to update shift");
             }
           } catch (error) {
             console.error("Error updating shift:", error);
-            // Revert on error
-            if (onShiftUpdate) onShiftUpdate();
+            // Clear visual position on error too
+            setVisualPositions(prev => {
+              const next = new Map(prev);
+              next.delete(resizing.shift.id);
+              return next;
+            });
+            setPendingSave(null);
+            alert("Failed to update shift");
           }
+        } else {
+          setResizing(null);
         }
       }
-      
-      setResizing(null);
-      setVisualPositions(new Map()); // Clear visual positions
     };
 
     document.addEventListener('mousemove', handleMouseMove);
