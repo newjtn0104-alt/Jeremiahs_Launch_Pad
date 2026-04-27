@@ -8,6 +8,7 @@ export async function GET() {
       .from("employees")
       .select("*")
       .eq("active", true)
+      .order("sort_order", { ascending: true })
       .order("last_name", { ascending: true });
 
     if (error) {
@@ -34,24 +35,36 @@ export async function POST(request: Request) {
     const body = await request.json();
     
     // Validate required fields
-    if (!body.first_name || !body.last_name || !body.email || !body.store) {
+    if (!body.first_name || !body.last_name || !body.store) {
       return NextResponse.json(
         { success: false, error: "Missing required fields" },
         { status: 400 }
       );
     }
 
+    // Get max sort_order for this store
+    const { data: maxOrderData } = await supabase
+      .from("employees")
+      .select("sort_order")
+      .eq("store", body.store)
+      .order("sort_order", { ascending: false })
+      .limit(1);
+
+    const nextSortOrder = (maxOrderData?.[0]?.sort_order ?? -1) + 1;
+
     const { data, error } = await supabase
       .from("employees")
       .insert({
         first_name: body.first_name,
         last_name: body.last_name,
-        email: body.email,
+        email: body.email || null,
         password_hash: body.password_hash || "temp_password",
         role: body.role || "employee",
+        position: body.position || null,
         store: body.store,
         wage: body.wage || 11.00,
         active: true,
+        sort_order: nextSortOrder,
       })
       .select()
       .single();

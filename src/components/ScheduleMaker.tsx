@@ -15,6 +15,7 @@ interface Employee {
   role: string;
   store: string;
   wage: number;
+  sort_order?: number;
 }
 
 interface Shift {
@@ -54,17 +55,24 @@ export default function ScheduleMaker({
   const [loading, setLoading] = useState(true);
   const [selectedShifts, setSelectedShifts] = useState<Set<string>>(new Set());
   const [isSelectMode, setIsSelectMode] = useState(false);
-  
-  // Drag and drop state
   const [draggedShift, setDraggedShift] = useState<Shift | null>(null);
   const [dragOverCell, setDragOverCell] = useState<{employeeId: string, date: string} | null>(null);
+  
+  // Employee reordering state
+  const [draggedEmployee, setDraggedEmployee] = useState<Employee | null>(null);
+  const [dragOverEmployeeId, setDragOverEmployeeId] = useState<string | null>(null);
 
-  // Use props if provided, otherwise fetch
   const weekStart = propWeekStart || currentWeek;
   const displayEmployees = propEmployees || employees;
   const displayShifts = propShifts || shifts;
 
-  // Generate week days (Mon-Sun)
+  // Sort employees by sort_order
+  const sortedEmployees = [...displayEmployees].sort((a, b) => {
+    const orderA = a.sort_order ?? 0;
+    const orderB = b.sort_order ?? 0;
+    return orderA - orderB;
+  });
+
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   useEffect(() => {
@@ -83,7 +91,11 @@ export default function ScheduleMaker({
       const res = await fetch("/api/employees");
       const data = await res.json();
       if (data.success) {
-        setEmployees(data.employees.filter((e: Employee) => e.store === store));
+        // Sort by sort_order
+        const sorted = data.employees
+          .filter((e: Employee) => e.store === store)
+          .sort((a: Employee, b: Employee) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        setEmployees(sorted);
       }
     } catch (error) {
       console.error("Error fetching employees:", error);
@@ -124,6 +136,80 @@ export default function ScheduleMaker({
     const [startH, startM] = start.split(":").map(Number);
     const [endH, endM] = end.split(":").map(Number);
     return (endH + endM / 60) - (startH + startM / 60);
+  };
+
+  // Employee drag handlers for reordering
+  const handleEmployeeDragStart = (e: React.DragEvent, employee: Employee) => {
+    setDraggedEmployee(employee);
+    e.dataTransfer.effectAllowed = "move";
+    // Make the drag image transparent or use a custom one
+    const img = new Image();
+    img.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+    e.dataTransfer.setDragImage(img, 0, 0);
+  };
+
+  const handleEmployeeDragOver = (e: React.DragEvent, targetEmployee: Employee) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+    if (draggedEmployee && draggedEmployee.id !== targetEmployee.id) {
+      setDragOverEmployeeId(targetEmployee.id);
+    }
+  };
+
+  const handleEmployeeDragLeave = () => {
+    setDragOverEmployeeId(null);
+  };
+
+  const handleEmployeeDrop = async (e: React.DragEvent, targetEmployee: Employee) => {
+    e.preventDefault();
+    setDragOverEmployeeId(null);
+    
+    if (!draggedEmployee || draggedEmployee.id === targetEmployee.id) {
+      setDraggedEmployee(null);
+      return;
+    }
+
+    // Calculate new sort orders
+    const currentIndex = sortedEmployees.findIndex(emp => emp.id === draggedEmployee.id);
+    const targetIndex = sortedEmployees.findIndex(emp => emp.id === targetEmployee.id);
+    
+    // Reorder the array
+    const newOrder = [...sortedEmployees];
+    newOrder.splice(currentIndex, 1);
+    newOrder.splice(targetIndex, 0, draggedEmployee);
+    
+    // Update sort_order for all employees
+    const updates = newOrder.map((emp, index) => ({
+      id: emp.id,
+      sort_order: index * 10, // Use multiples of 10 to allow inserting between
+    }));
+
+    // Optimistically update UI
+    setEmployees(newOrder);
+
+    // Save to backend
+    try {
+      const res = await fetch('/api/employees/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ updates }),
+      });
+
+      if (!res.ok) {
+        // Revert on error
+        fetchEmployees();
+      }
+    } catch (error) {
+      console.error('Error reordering employees:', error);
+      fetchEmployees();
+    }
+
+    setDraggedEmployee(null);
+  };
+
+  const handleEmployeeDragEnd = () => {
+    setDraggedEmployee(null);
+    setDragOverEmployeeId(null);
   };
 
   const handleCellClick = (day: Date, employeeId?: string) => {
@@ -168,7 +254,7 @@ export default function ScheduleMaker({
     }
   };
 
-  // Drag and drop handlers
+  // Shift drag and drop handlers
   const handleDragStart = (e: React.DragEvent, shift: Shift) => {
     setDraggedShift(shift);
     e.dataTransfer.effectAllowed = "move";
@@ -395,7 +481,7 @@ export default function ScheduleMaker({
         {/* Drag and drop hint */}
         {!isSelectMode && (
           <div className="mt-2 text-xs text-slate-400">
-            💡 Tip: Click on a day header for daily timeline view. Drag and drop shifts to move them.
+            💡 Tip: Click on a day header for daily timeline view. Drag and drop shifts to move them. Drag employee names to reorder.
           </div>
         )}
       </CardHeader>
@@ -408,7 +494,10 @@ export default function ScheduleMaker({
             <div className="min-w-[800px]">
               {/* Header Row */}
               <div className="grid grid-cols-8 gap-2 mb-2">
-                <div className="font-semibold text-sm text-slate-600 p-2">Employee</div>
+                <div className="font-semibold text-sm text-slate-600 p-2 flex items-center gap-2">
+                  <GripVertical className="w-4 h-4 text-slate-400" />
+                  Employee
+                </div>
                 {weekDays.map((day, i) => (
                   <div
                     key={i}
@@ -427,17 +516,28 @@ export default function ScheduleMaker({
               </div>
 
               {/* Employee Rows */}
-              {displayEmployees.length === 0 ? (
+              {sortedEmployees.length === 0 ? (
                 <div className="text-center py-8 text-slate-500">
                   No employees found for {store}
                 </div>
               ) : (
-                displayEmployees.map((employee) => (
+                sortedEmployees.map((employee, index) => (
                   <div
                     key={employee.id}
-                    className="grid grid-cols-8 gap-2 mb-2 border-t border-slate-100 pt-2"
+                    className={`grid grid-cols-8 gap-2 mb-2 border-t border-slate-100 pt-2 transition-all ${
+                      draggedEmployee?.id === employee.id ? "opacity-50" : ""
+                    } ${
+                      dragOverEmployeeId === employee.id ? "bg-blue-50 border-blue-300" : ""
+                    }`}
+                    draggable
+                    onDragStart={(e) => handleEmployeeDragStart(e, employee)}
+                    onDragOver={(e) => handleEmployeeDragOver(e, employee)}
+                    onDragLeave={handleEmployeeDragLeave}
+                    onDrop={(e) => handleEmployeeDrop(e, employee)}
+                    onDragEnd={handleEmployeeDragEnd}
                   >
-                    <div className="p-2 flex items-center gap-2">
+                    <div className="p-2 flex items-center gap-2 cursor-move hover:bg-slate-50 rounded">
+                      <GripVertical className="w-4 h-4 text-slate-400" />
                       <User className="w-4 h-4 text-slate-400" />
                       <div>
                         <div className="font-medium text-sm">
