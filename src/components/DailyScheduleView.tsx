@@ -54,18 +54,29 @@ export default function DailyScheduleView({
   const [resizing, setResizing] = useState<{
     shift: Shift;
     edge: 'start' | 'end';
-    startX: number;
-    originalTime: string;
   } | null>(null);
-  const [previewTime, setPreviewTime] = useState<string | null>(null);
-  const [isResizing, setIsResizing] = useState(false);
-  const timelineRef = useRef<HTMLDivElement>(null);
+  
+  // Visual state for smooth dragging - stores temporary positions during drag
+  const [visualPositions, setVisualPositions] = useState<Map<string, {start: string, end: string}>>(new Map());
+  
   const containerRef = useRef<HTMLDivElement>(null);
 
   const dateStr = format(date, "yyyy-MM-dd");
+  
+  // Merge original shifts with visual positions for display
+  const displayShifts = useMemo(() => {
+    return shifts.map(shift => {
+      const visual = visualPositions.get(shift.id);
+      if (visual) {
+        return { ...shift, start_time: visual.start, end_time: visual.end };
+      }
+      return shift;
+    });
+  }, [shifts, visualPositions]);
+
   const dayShifts = useMemo(() => {
-    return shifts.filter((s) => s.date === dateStr);
-  }, [shifts, dateStr]);
+    return displayShifts.filter((s) => s.date === dateStr);
+  }, [displayShifts, dateStr]);
 
   const hourLabels = useMemo(() => {
     const labels = [];
@@ -118,11 +129,13 @@ export default function DailyScheduleView({
   };
 
   // Get time from mouse X position
-  const getTimeFromMouseX = useCallback((clientX: number): string | null => {
-    if (!containerRef.current) return null;
+  const getTimeFromMouseX = useCallback((clientX: number): string => {
+    if (!containerRef.current) return "08:00";
     const rect = containerRef.current.getBoundingClientRect();
-    const x = clientX - rect.left;
-    const percentage = x / rect.width;
+    const employeeColumnWidth = 160; // w-40 = 10rem = 160px
+    const x = clientX - rect.left - employeeColumnWidth;
+    const timelineWidth = rect.width - employeeColumnWidth;
+    const percentage = Math.max(0, Math.min(1, x / timelineWidth));
     const totalMinutes = percentage * TOTAL_HOURS * 60;
     const snappedMinutes = Math.round(totalMinutes / 15) * 15;
     return minutesToTime(Math.max(0, Math.min(snappedMinutes, TOTAL_HOURS * 60)));
@@ -133,61 +146,86 @@ export default function DailyScheduleView({
     e.preventDefault();
     e.stopPropagation();
     
-    setIsResizing(true);
-    setResizing({
-      shift,
-      edge,
-      startX: e.clientX,
-      originalTime: edge === 'start' ? shift.start_time : shift.end_time,
-    });
+    setResizing({ shift, edge });
+    
+    // Initialize visual position with current values
+    setVisualPositions(prev => new Map(prev.set(shift.id, {
+      start: shift.start_time,
+      end: shift.end_time
+    })));
   };
 
-  // Handle mouse move during resize
+  // Handle mouse move during resize - updates visual state in real-time
   useEffect(() => {
     if (!resizing) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       e.preventDefault();
       const newTime = getTimeFromMouseX(e.clientX);
-      if (newTime) {
-        setPreviewTime(newTime);
-      }
+      
+      setVisualPositions(prev => {
+        const current = prev.get(resizing.shift.id) || { 
+          start: resizing.shift.start_time, 
+          end: resizing.shift.end_time 
+        };
+        
+        let updated = { ...current };
+        
+        if (resizing.edge === 'start') {
+          // Ensure start time doesn't go past end time
+          const startMins = timeToMinutes(newTime);
+          const endMins = timeToMinutes(current.end);
+          if (startMins < endMins) {
+            updated.start = newTime;
+          }
+        } else {
+          // Ensure end time doesn't go before start time
+          const endMins = timeToMinutes(newTime);
+          const startMins = timeToMinutes(current.start);
+          if (endMins > startMins) {
+            updated.end = newTime;
+          }
+        }
+        
+        return new Map(prev.set(resizing.shift.id, updated));
+      });
     };
 
     const handleMouseUp = async (e: MouseEvent) => {
       e.preventDefault();
-      const finalTime = getTimeFromMouseX(e.clientX);
       
-      if (finalTime && resizing) {
-        const updates: Partial<Shift> = {};
-        if (resizing.edge === 'start') {
-          updates.start_time = finalTime;
-        } else {
-          updates.end_time = finalTime;
-        }
-
-        try {
-          const res = await fetch(`/api/shifts/${resizing.shift.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(updates),
-          });
-
-          const data = await res.json();
-          if (data.success) {
-            if (onShiftUpdate) onShiftUpdate();
+      if (resizing) {
+        const visualPos = visualPositions.get(resizing.shift.id);
+        if (visualPos) {
+          const updates: Partial<Shift> = {};
+          if (resizing.edge === 'start') {
+            updates.start_time = visualPos.start;
           } else {
-            alert(data.error || "Failed to update shift");
+            updates.end_time = visualPos.end;
           }
-        } catch (error) {
-          console.error("Error updating shift:", error);
-          alert("Failed to update shift");
+
+          try {
+            const res = await fetch(`/api/shifts/${resizing.shift.id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(updates),
+            });
+
+            const data = await res.json();
+            if (!data.success) {
+              // Revert on error
+              if (onShiftUpdate) onShiftUpdate();
+            }
+          } catch (error) {
+            console.error("Error updating shift:", error);
+            // Revert on error
+            if (onShiftUpdate) onShiftUpdate();
+          }
         }
       }
       
       setResizing(null);
-      setPreviewTime(null);
-      setIsResizing(false);
+      setVisualPositions(new Map()); // Clear visual positions
     };
 
     document.addEventListener('mousemove', handleMouseMove);
@@ -197,11 +235,11 @@ export default function DailyScheduleView({
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [resizing, getTimeFromMouseX, onShiftUpdate]);
+  }, [resizing, getTimeFromMouseX, visualPositions, onShiftUpdate]);
 
   // Drag handlers for moving between employees
   const handleDragStart = (e: React.DragEvent, shift: Shift) => {
-    if (isResizing) {
+    if (resizing) {
       e.preventDefault();
       return;
     }
@@ -231,9 +269,7 @@ export default function DailyScheduleView({
       });
 
       const data = await res.json();
-      if (data.success) {
-        if (onShiftUpdate) onShiftUpdate();
-      }
+      if (data.success && onShiftUpdate) onShiftUpdate();
     } catch (error) {
       console.error("Error moving shift:", error);
     }
@@ -255,7 +291,7 @@ export default function DailyScheduleView({
   };
 
   const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
-    if (isResizing) return;
+    if (resizing) return;
     e.stopPropagation();
     if (onEditShift) onEditShift(shift);
   };
@@ -266,6 +302,13 @@ export default function DailyScheduleView({
 
   const getEmployeeShifts = (employeeId: string) => {
     return dayShifts.filter((s) => s.employee_id === employeeId);
+  };
+
+  // Get current visual position for tooltip
+  const getCurrentVisualTime = (shift: Shift): string => {
+    const visual = visualPositions.get(shift.id);
+    if (!visual) return '';
+    return resizing?.edge === 'start' ? visual.start : visual.end;
   };
 
   return (
@@ -297,7 +340,7 @@ export default function DailyScheduleView({
           <div className="w-40 flex-shrink-0 font-semibold text-sm text-slate-600 p-2">
             Employee
           </div>
-          <div className="flex-1 relative" ref={timelineRef}>
+          <div className="flex-1 relative">
             <div className="flex h-8 relative">
               {hourLabels.map((label, i) => (
                 <div
@@ -350,45 +393,45 @@ export default function DailyScheduleView({
                     {empShifts.map((shift) => (
                       <div
                         key={shift.id}
-                        draggable={!isResizing}
+                        draggable={!resizing}
                         onDragStart={(e) => handleDragStart(e, shift)}
                         onClick={(e) => handleShiftClick(e, shift)}
-                        className={`absolute top-2 bottom-2 rounded-md text-xs select-none ${
+                        className={`absolute top-2 bottom-2 rounded-md text-xs select-none transition-none ${
                           shift.status === "needs_cover"
                             ? "bg-red-100 text-red-700 border border-red-200"
                             : shift.status === "covered"
                             ? "bg-green-100 text-green-700 border border-green-200"
                             : "bg-blue-100 text-blue-700 border border-blue-200"
-                        } ${draggedShift?.id === shift.id ? "opacity-50" : ""}`}
+                        } ${draggedShift?.id === shift.id ? "opacity-50" : ""} ${resizing?.shift.id === shift.id ? "z-50 shadow-lg" : ""}`}
                         style={getShiftStyle(shift)}
                       >
                         {/* Left resize handle */}
                         <div
-                          className="absolute left-0 top-0 bottom-0 w-4 cursor-ew-resize z-20 flex items-center justify-center hover:bg-blue-500/30"
+                          className="absolute left-0 top-0 bottom-0 w-5 cursor-ew-resize z-20 flex items-center justify-center hover:bg-blue-500/40 active:bg-blue-500/60"
                           onMouseDown={(e) => startResize(e, shift, 'start')}
                           style={{ touchAction: 'none' }}
                         >
-                          <div className="w-1 h-8 bg-slate-500/60 rounded-full" />
+                          <div className="w-1.5 h-10 bg-slate-500/70 rounded-full" />
                         </div>
 
                         {/* Right resize handle */}
                         <div
-                          className="absolute right-0 top-0 bottom-0 w-4 cursor-ew-resize z-20 flex items-center justify-center hover:bg-blue-500/30"
+                          className="absolute right-0 top-0 bottom-0 w-5 cursor-ew-resize z-20 flex items-center justify-center hover:bg-blue-500/40 active:bg-blue-500/60"
                           onMouseDown={(e) => startResize(e, shift, 'end')}
                           style={{ touchAction: 'none' }}
                         >
-                          <div className="w-1 h-8 bg-slate-500/60 rounded-full" />
+                          <div className="w-1.5 h-10 bg-slate-500/70 rounded-full" />
                         </div>
 
                         {/* Content area (for dragging) */}
-                        <div className="absolute left-4 right-4 top-0 bottom-0 cursor-move flex items-center justify-center">
+                        <div className="absolute left-5 right-5 top-0 bottom-0 cursor-move flex items-center justify-center">
                           <div className="opacity-0 hover:opacity-100 transition-opacity">
                             <GripVertical className="w-4 h-4 text-slate-400" />
                           </div>
                         </div>
 
                         {/* Text content */}
-                        <div className="px-5 h-full flex flex-col justify-center pointer-events-none">
+                        <div className="px-6 h-full flex flex-col justify-center pointer-events-none">
                           <div className="font-medium truncate">
                             {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                           </div>
@@ -398,7 +441,7 @@ export default function DailyScheduleView({
                         </div>
 
                         {/* Edit/Delete buttons */}
-                        <div className="absolute top-1 right-5 flex gap-1 opacity-0 hover:opacity-100 transition-opacity z-30">
+                        <div className="absolute top-1 right-6 flex gap-1 opacity-0 hover:opacity-100 transition-opacity z-30">
                           <button
                             onClick={(e) => { e.stopPropagation(); handleShiftClick(e, shift); }}
                             className="p-1 bg-white rounded shadow-sm hover:bg-gray-100"
@@ -414,9 +457,9 @@ export default function DailyScheduleView({
                         </div>
 
                         {/* Preview tooltip while resizing */}
-                        {resizing?.shift.id === shift.id && previewTime && (
-                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50">
-                            {resizing.edge === 'start' ? 'Start: ' : 'End: '}{formatTime(previewTime)}
+                        {resizing?.shift.id === shift.id && (
+                          <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-xs px-2 py-1 rounded whitespace-nowrap z-50 pointer-events-none">
+                            {resizing.edge === 'start' ? 'Start: ' : 'End: '}{formatTime(getCurrentVisualTime(shift))}
                           </div>
                         )}
                       </div>
@@ -451,7 +494,7 @@ export default function DailyScheduleView({
         </div>
 
         <div className="mt-4 text-xs text-slate-400">
-          💡 Tip: Drag the grey bars on edges to resize, drag center to move, click to edit
+          💡 Tip: Drag the grey bars on edges to resize in real-time, drag center to move, click to edit
         </div>
       </CardContent>
     </Card>
