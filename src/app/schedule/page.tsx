@@ -3,21 +3,25 @@
 import { useState, useEffect } from 'react';
 import ScheduleMaker from '@/components/ScheduleMaker';
 import AddEmployeeModal from '@/components/AddEmployeeModal';
+import EditEmployeeModal from '@/components/EditEmployeeModal';
 import AddShiftModal from '@/components/AddShiftModal';
 import EditShiftModal from '@/components/EditShiftModal';
 import DailyScheduleView from '@/components/DailyScheduleView';
 import BulkImportEmployeesModal from '@/components/BulkImportEmployeesModal';
 import ClientOnly from '@/components/ClientOnly';
 import { Button } from '@/components/ui/button';
-import { Plus, Users, CalendarDays, ChevronLeft, LayoutDashboard, Calendar, Users2, UserPlus, ClipboardList, ChevronDown, ChevronRight, Clock, CalendarX, CalendarCheck, RefreshCw, Upload } from 'lucide-react';
+import { Plus, Users, CalendarDays, ChevronLeft, LayoutDashboard, Calendar, Users2, ChevronDown, ChevronRight, CalendarX, CalendarCheck, RefreshCw, Upload, Edit2, Trash2, Mail, Store, DollarSign } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
 
 interface Employee {
   id: string;
   first_name: string;
   last_name: string;
+  email?: string;
   role: string;
   store: string;
+  position?: string;
+  wage?: number;
 }
 
 interface Shift {
@@ -31,7 +35,7 @@ interface Shift {
   notes?: string;
 }
 
-type ScheduleView = 'schedules' | 'time-off' | 'availability' | 'shift-pool';
+type ViewType = 'schedules' | 'time-off' | 'availability' | 'shift-pool' | 'team';
 
 export default function SchedulePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
@@ -39,6 +43,7 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState(new Date());
   const [isEmployeeModalOpen, setIsEmployeeModalOpen] = useState(false);
+  const [isEditEmployeeModalOpen, setIsEditEmployeeModalOpen] = useState(false);
   const [isShiftModalOpen, setIsShiftModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
@@ -46,15 +51,13 @@ export default function SchedulePage() {
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string | null>(null);
   const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   
-  // Lifted daily view state - persists across data refreshes
   const [dailyViewDate, setDailyViewDate] = useState<Date | null>(null);
-  
-  // Sidebar navigation state
   const [scheduleExpanded, setScheduleExpanded] = useState(true);
-  const [activeView, setActiveView] = useState<ScheduleView>('schedules');
+  const [activeView, setActiveView] = useState<ViewType>('schedules');
 
-  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
+  const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
   useEffect(() => {
@@ -65,14 +68,12 @@ export default function SchedulePage() {
     try {
       setLoading(true);
       
-      // Fetch employees
       const empRes = await fetch('/api/employees');
       if (empRes.ok) {
         const empData = await empRes.json();
         setEmployees(empData.employees || []);
       }
 
-      // Fetch shifts for the week
       const startDate = format(weekStart, 'yyyy-MM-dd');
       const endDate = format(addDays(weekStart, 6), 'yyyy-MM-dd');
       const shiftRes = await fetch(`/api/shifts?start=${startDate}&end=${endDate}`);
@@ -89,6 +90,11 @@ export default function SchedulePage() {
 
   const handleAddEmployee = () => {
     setIsEmployeeModalOpen(true);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setEditingEmployee(employee);
+    setIsEditEmployeeModalOpen(true);
   };
 
   const handleBulkImport = () => {
@@ -114,14 +120,12 @@ export default function SchedulePage() {
 
   const handleShiftUpdate = () => {
     fetchData();
-    // Note: dailyViewDate stays unchanged - daily view remains open
   };
 
   const handleEmployeeAdded = () => {
     fetchData();
   };
 
-  // Daily view handlers
   const handleOpenDailyView = (date: Date) => {
     setDailyViewDate(date);
   };
@@ -130,28 +134,35 @@ export default function SchedulePage() {
     setDailyViewDate(null);
   };
 
-  // Navigation handlers
   const handleScheduleClick = () => {
     setScheduleExpanded(!scheduleExpanded);
   };
 
-  const handleViewChange = (view: ScheduleView) => {
+  const handleViewChange = (view: ViewType) => {
     setActiveView(view);
     if (view === 'schedules') {
       setDailyViewDate(null);
     }
   };
 
-  // Mock counts for badges
   const timeOffCount = 0;
   const shiftPoolCount = 0;
+
+  const getRoleLabel = (role: string) => {
+    const labels: Record<string, string> = {
+      'employee': 'Employee',
+      'assistant_manager': 'Asst. Manager',
+      'manager': 'Manager',
+      'admin': 'Admin'
+    };
+    return labels[role] || role;
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar */}
       <div className="w-64 bg-white border-r flex-shrink-0">
         <div className="p-4">
-          {/* Logo area */}
           <div className="flex items-center gap-2 mb-6 px-2">
             <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
               JI
@@ -159,15 +170,12 @@ export default function SchedulePage() {
             <span className="font-semibold text-lg">Jeremiah&apos;s</span>
           </div>
 
-          {/* Navigation */}
           <nav className="space-y-1">
-            {/* Dashboard */}
             <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
               <LayoutDashboard className="w-5 h-5" />
               <span className="font-medium">Dashboard</span>
             </button>
 
-            {/* Schedule with submenu */}
             <div>
               <button 
                 onClick={handleScheduleClick}
@@ -188,7 +196,6 @@ export default function SchedulePage() {
                 )}
               </button>
 
-              {/* Submenu */}
               {scheduleExpanded && (
                 <div className="ml-4 mt-1 space-y-1">
                   <button
@@ -256,25 +263,16 @@ export default function SchedulePage() {
               )}
             </div>
 
-            {/* Team */}
             <button 
-              onClick={handleAddEmployee}
-              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              onClick={() => handleViewChange('team')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
+                activeView === 'team'
+                  ? 'bg-blue-100 text-blue-700' 
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
             >
               <Users2 className="w-5 h-5" />
               <span className="font-medium">Team</span>
-            </button>
-
-            {/* Hiring */}
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <UserPlus className="w-5 h-5" />
-              <span className="font-medium">Hiring</span>
-            </button>
-
-            {/* Tasks */}
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
-              <ClipboardList className="w-5 h-5" />
-              <span className="font-medium">Tasks</span>
             </button>
           </nav>
         </div>
@@ -292,11 +290,14 @@ export default function SchedulePage() {
                   {activeView === 'time-off' && 'Time Off Requests'}
                   {activeView === 'availability' && 'Employee Availability'}
                   {activeView === 'shift-pool' && 'Shift Pool'}
+                  {activeView === 'team' && 'Team Members'}
                 </h1>
                 <p className="text-sm text-gray-500 mt-1">
-                  {dailyViewDate 
-                    ? format(dailyViewDate, 'EEEE, MMMM d, yyyy')
-                    : `Week of ${format(weekStart, 'MMM d')} - ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
+                  {activeView === 'team' 
+                    ? `${employees.length} employees`
+                    : dailyViewDate 
+                      ? format(dailyViewDate, 'EEEE, MMMM d, yyyy')
+                      : `Week of ${format(weekStart, 'MMM d')} - ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
                   }
                 </p>
               </div>
@@ -344,6 +345,25 @@ export default function SchedulePage() {
                       Add Shift
                     </Button>
                   </>
+                ) : activeView === 'team' ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={handleAddEmployee}
+                      className="flex items-center gap-2"
+                    >
+                      <Users className="w-4 h-4" />
+                      Add Employee
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleBulkImport}
+                      className="flex items-center gap-2"
+                    >
+                      <Upload className="w-4 h-4" />
+                      Bulk Import
+                    </Button>
+                  </>
                 ) : (
                   <Button
                     variant="outline"
@@ -359,7 +379,7 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        {/* Week Navigation - only show in weekly schedule view */}
+        {/* Week Navigation */}
         {activeView === 'schedules' && !dailyViewDate && (
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-4">
@@ -404,7 +424,6 @@ export default function SchedulePage() {
             </div>
           ) : activeView === 'schedules' ? (
             dailyViewDate ? (
-              /* Daily View */
               <DailyScheduleView
                 date={dailyViewDate}
                 employees={employees}
@@ -415,7 +434,6 @@ export default function SchedulePage() {
                 onAddShift={handleCellClick}
               />
             ) : (
-              /* Weekly View */
               <ScheduleMaker
                 employees={employees}
                 shifts={shifts}
@@ -426,46 +444,123 @@ export default function SchedulePage() {
                 onDayHeaderClick={handleOpenDailyView}
               />
             )
+          ) : activeView === 'team' ? (
+            /* Team View */
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Position</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Wage</th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {employees.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                          No employees found. Add your first employee to get started.
+                        </td>
+                      </tr>
+                    ) : (
+                      employees.map((employee) => (
+                        <tr key={employee.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center">
+                              <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-semibold">
+                                {employee.first_name[0]}{employee.last_name[0]}
+                              </div>
+                              <div className="ml-4">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {employee.first_name} {employee.last_name}
+                                </div>
+                                {employee.email && (
+                                  <div className="text-sm text-gray-500 flex items-center gap-1">
+                                    <Mail className="w-3 h-3" />
+                                    {employee.email}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                              {getRoleLabel(employee.role)}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 flex items-center gap-1">
+                              <Store className="w-4 h-4 text-gray-400" />
+                              {employee.store}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900">
+                              {employee.position || '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="text-sm text-gray-900 flex items-center gap-1">
+                              <DollarSign className="w-4 h-4 text-gray-400" />
+                              {employee.wage ? employee.wage.toFixed(2) : '-'}
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <button
+                              onClick={() => handleEditEmployee(employee)}
+                              className="text-blue-600 hover:text-blue-900 mr-3"
+                              title="Edit employee"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
           ) : activeView === 'time-off' ? (
-            /* Time Off View */
             <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
               <CalendarX className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Time Off Requests</h3>
               <p className="text-gray-500 mb-6">No pending time off requests.</p>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                View All Requests
-              </Button>
             </div>
           ) : activeView === 'availability' ? (
-            /* Availability View */
             <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
               <CalendarCheck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Employee Availability</h3>
               <p className="text-gray-500 mb-6">Manage when employees are available to work.</p>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                Set Availability
-              </Button>
             </div>
           ) : activeView === 'shift-pool' ? (
-            /* Shift Pool View */
             <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
               <RefreshCw className="w-16 h-16 text-gray-300 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Shift Pool</h3>
               <p className="text-gray-500 mb-6">Shifts that need coverage will appear here.</p>
-              <Button className="bg-blue-600 hover:bg-blue-700">
-                View Open Shifts
-              </Button>
             </div>
           ) : null}
         </div>
       </div>
 
-      {/* Modals - wrapped in ClientOnly to prevent hydration issues */}
+      {/* Modals */}
       <ClientOnly>
         <AddEmployeeModal
           isOpen={isEmployeeModalOpen}
           onClose={() => setIsEmployeeModalOpen(false)}
           onSuccess={handleEmployeeAdded}
+        />
+      </ClientOnly>
+      <ClientOnly>
+        <EditEmployeeModal
+          isOpen={isEditEmployeeModalOpen}
+          onClose={() => setIsEditEmployeeModalOpen(false)}
+          onSuccess={handleEmployeeAdded}
+          employee={editingEmployee}
         />
       </ClientOnly>
       <ClientOnly>
