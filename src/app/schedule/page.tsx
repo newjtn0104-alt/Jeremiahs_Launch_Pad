@@ -8,7 +8,7 @@ import EditShiftModal from '@/components/EditShiftModal';
 import DailyScheduleView from '@/components/DailyScheduleView';
 import ClientOnly from '@/components/ClientOnly';
 import { Button } from '@/components/ui/button';
-import { Plus, Users, CalendarDays, ChevronLeft } from 'lucide-react';
+import { Plus, Users, CalendarDays, ChevronLeft, LayoutDashboard, Calendar, Users2, UserPlus, ClipboardList, ChevronDown, ChevronRight, Clock, CalendarX, CalendarCheck, RefreshCw } from 'lucide-react';
 import { format, startOfWeek, addDays } from 'date-fns';
 
 interface Employee {
@@ -30,6 +30,8 @@ interface Shift {
   notes?: string;
 }
 
+type ScheduleView = 'schedules' | 'time-off' | 'availability' | 'shift-pool';
+
 export default function SchedulePage() {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -45,6 +47,10 @@ export default function SchedulePage() {
   
   // Lifted daily view state - persists across data refreshes
   const [dailyViewDate, setDailyViewDate] = useState<Date | null>(null);
+  
+  // Sidebar navigation state
+  const [scheduleExpanded, setScheduleExpanded] = useState(true);
+  const [activeView, setActiveView] = useState<ScheduleView>('schedules');
 
   const weekStart = startOfWeek(currentWeek, { weekStartsOn: 1 }); // Monday
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -118,129 +124,326 @@ export default function SchedulePage() {
     setDailyViewDate(null);
   };
 
+  // Navigation handlers
+  const handleScheduleClick = () => {
+    setScheduleExpanded(!scheduleExpanded);
+  };
+
+  const handleViewChange = (view: ScheduleView) => {
+    setActiveView(view);
+    if (view === 'schedules') {
+      setDailyViewDate(null);
+    }
+  };
+
+  // Mock counts for badges
+  const timeOffCount = 0;
+  const shiftPoolCount = 0;
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Schedule Maker</h1>
-              <p className="text-sm text-gray-500 mt-1">
-                {dailyViewDate 
-                  ? format(dailyViewDate, 'EEEE, MMMM d, yyyy')
-                  : `Week of ${format(weekStart, 'MMM d')} - ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
-                }
-              </p>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Sidebar */}
+      <div className="w-64 bg-white border-r flex-shrink-0">
+        <div className="p-4">
+          {/* Logo area */}
+          <div className="flex items-center gap-2 mb-6 px-2">
+            <div className="w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+              JI
             </div>
-            <div className="flex gap-3">
-              {dailyViewDate ? (
-                <Button
-                  variant="outline"
-                  onClick={handleCloseDailyView}
-                  className="flex items-center gap-2"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Back to Weekly View
-                </Button>
-              ) : (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => setCurrentWeek(new Date())}
-                    className="flex items-center gap-2"
+            <span className="font-semibold text-lg">Jeremiah&apos;s</span>
+          </div>
+
+          {/* Navigation */}
+          <nav className="space-y-1">
+            {/* Dashboard */}
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <LayoutDashboard className="w-5 h-5" />
+              <span className="font-medium">Dashboard</span>
+            </button>
+
+            {/* Schedule with submenu */}
+            <div>
+              <button 
+                onClick={handleScheduleClick}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg transition-colors ${
+                  activeView === 'schedules' && !dailyViewDate
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Calendar className="w-5 h-5" />
+                  <span className="font-medium">Schedule</span>
+                </div>
+                {scheduleExpanded ? (
+                  <ChevronDown className="w-4 h-4" />
+                ) : (
+                  <ChevronRight className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* Submenu */}
+              {scheduleExpanded && (
+                <div className="ml-4 mt-1 space-y-1">
+                  <button
+                    onClick={() => handleViewChange('schedules')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      activeView === 'schedules' && !dailyViewDate
+                        ? 'bg-blue-50 text-blue-700' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
                   >
                     <CalendarDays className="w-4 h-4" />
-                    Today
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleAddEmployee}
-                    className="flex items-center gap-2"
+                    <span>Schedules</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleViewChange('time-off')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                      activeView === 'time-off'
+                        ? 'bg-blue-50 text-blue-700' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
                   >
-                    <Users className="w-4 h-4" />
-                    Add Employee
-                  </Button>
-                  <Button
-                    onClick={handleAddShift}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                    <div className="flex items-center gap-3">
+                      <CalendarX className="w-4 h-4" />
+                      <span>Time Off</span>
+                    </div>
+                    {timeOffCount > 0 && (
+                      <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        {timeOffCount}
+                      </span>
+                    )}
+                  </button>
+                  
+                  <button
+                    onClick={() => handleViewChange('availability')}
+                    className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors ${
+                      activeView === 'availability'
+                        ? 'bg-blue-50 text-blue-700' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
                   >
-                    <Plus className="w-4 h-4" />
-                    Add Shift
-                  </Button>
-                </>
+                    <CalendarCheck className="w-4 h-4" />
+                    <span>Availability</span>
+                  </button>
+                  
+                  <button
+                    onClick={() => handleViewChange('shift-pool')}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors ${
+                      activeView === 'shift-pool'
+                        ? 'bg-blue-50 text-blue-700' 
+                        : 'text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <RefreshCw className="w-4 h-4" />
+                      <span>Shift Pool</span>
+                    </div>
+                    {shiftPoolCount > 0 && (
+                      <span className="bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
+                        {shiftPoolCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
               )}
             </div>
-          </div>
+
+            {/* Team */}
+            <button 
+              onClick={handleAddEmployee}
+              className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              <Users2 className="w-5 h-5" />
+              <span className="font-medium">Team</span>
+            </button>
+
+            {/* Hiring */}
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <UserPlus className="w-5 h-5" />
+              <span className="font-medium">Hiring</span>
+            </button>
+
+            {/* Tasks */}
+            <button className="w-full flex items-center gap-3 px-3 py-2.5 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+              <ClipboardList className="w-5 h-5" />
+              <span className="font-medium">Tasks</span>
+            </button>
+          </nav>
         </div>
       </div>
 
-      {/* Week Navigation - only show in weekly view */}
-      {!dailyViewDate && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-4">
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentWeek(addDays(currentWeek, -7))}
-            >
-              ← Previous Week
-            </Button>
-            <div className="flex gap-2">
-              {weekDays.map((day, i) => (
-                <div
-                  key={i}
-                  className={`text-center px-3 py-2 rounded-lg min-w-[60px] cursor-pointer hover:bg-slate-100 transition-colors ${
-                    format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'text-gray-600'
-                  }`}
-                  onClick={() => handleOpenDailyView(day)}
-                  title="Click for daily timeline view"
-                >
-                  <div className="text-xs font-medium">{format(day, 'EEE')}</div>
-                  <div className="text-lg font-bold">{format(day, 'd')}</div>
-                </div>
-              ))}
+      {/* Main Content */}
+      <div className="flex-1 min-w-0">
+        {/* Header */}
+        <div className="bg-white border-b">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex justify-between items-center py-4">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  {activeView === 'schedules' && 'Schedule Maker'}
+                  {activeView === 'time-off' && 'Time Off Requests'}
+                  {activeView === 'availability' && 'Employee Availability'}
+                  {activeView === 'shift-pool' && 'Shift Pool'}
+                </h1>
+                <p className="text-sm text-gray-500 mt-1">
+                  {dailyViewDate 
+                    ? format(dailyViewDate, 'EEEE, MMMM d, yyyy')
+                    : `Week of ${format(weekStart, 'MMM d')} - ${format(addDays(weekStart, 6), 'MMM d, yyyy')}`
+                  }
+                </p>
+              </div>
+              <div className="flex gap-3">
+                {dailyViewDate ? (
+                  <Button
+                    variant="outline"
+                    onClick={handleCloseDailyView}
+                    className="flex items-center gap-2"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Back to Weekly View
+                  </Button>
+                ) : activeView === 'schedules' ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => setCurrentWeek(new Date())}
+                      className="flex items-center gap-2"
+                    >
+                      <CalendarDays className="w-4 h-4" />
+                      Today
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleAddEmployee}
+                      className="flex items-center gap-2"
+                    >
+                      <Users className="w-4 h-4" />
+                      Add Employee
+                    </Button>
+                    <Button
+                      onClick={handleAddShift}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add Shift
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    onClick={() => handleViewChange('schedules')}
+                    className="flex items-center gap-2"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    Back to Schedule
+                  </Button>
+                )}
+              </div>
             </div>
-            <Button
-              variant="ghost"
-              onClick={() => setCurrentWeek(addDays(currentWeek, 7))}
-            >
-              Next Week →
-            </Button>
           </div>
         </div>
-      )}
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
-        {loading ? (
-          <div className="flex items-center justify-center h-96">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        {/* Week Navigation - only show in weekly schedule view */}
+        {activeView === 'schedules' && !dailyViewDate && (
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <div className="flex items-center justify-between bg-white rounded-lg shadow-sm border p-4">
+              <Button
+                variant="ghost"
+                onClick={() => setCurrentWeek(addDays(currentWeek, -7))}
+              >
+                ← Previous Week
+              </Button>
+              <div className="flex gap-2">
+                {weekDays.map((day, i) => (
+                  <div
+                    key={i}
+                    className={`text-center px-3 py-2 rounded-lg min-w-[60px] cursor-pointer hover:bg-slate-100 transition-colors ${
+                      format(day, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd')
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600'
+                    }`}
+                    onClick={() => handleOpenDailyView(day)}
+                    title="Click for daily timeline view"
+                  >
+                    <div className="text-xs font-medium">{format(day, 'EEE')}</div>
+                    <div className="text-lg font-bold">{format(day, 'd')}</div>
+                  </div>
+                ))}
+              </div>
+              <Button
+                variant="ghost"
+                onClick={() => setCurrentWeek(addDays(currentWeek, 7))}
+              >
+                Next Week →
+              </Button>
+            </div>
           </div>
-        ) : dailyViewDate ? (
-          /* Daily View */
-          <DailyScheduleView
-            date={dailyViewDate}
-            employees={employees}
-            shifts={shifts}
-            onClose={handleCloseDailyView}
-            onShiftUpdate={handleShiftUpdate}
-            onEditShift={handleEditShift}
-            onAddShift={handleCellClick}
-          />
-        ) : (
-          /* Weekly View */
-          <ScheduleMaker
-            employees={employees}
-            shifts={shifts}
-            weekStart={weekStart}
-            onShiftUpdate={handleShiftUpdate}
-            onAddShift={handleCellClick}
-            onEditShift={handleEditShift}
-            onDayHeaderClick={handleOpenDailyView}
-          />
         )}
+
+        {/* Content Area */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-8">
+          {loading ? (
+            <div className="flex items-center justify-center h-96">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+          ) : activeView === 'schedules' ? (
+            dailyViewDate ? (
+              /* Daily View */
+              <DailyScheduleView
+                date={dailyViewDate}
+                employees={employees}
+                shifts={shifts}
+                onClose={handleCloseDailyView}
+                onShiftUpdate={handleShiftUpdate}
+                onEditShift={handleEditShift}
+                onAddShift={handleCellClick}
+              />
+            ) : (
+              /* Weekly View */
+              <ScheduleMaker
+                employees={employees}
+                shifts={shifts}
+                weekStart={weekStart}
+                onShiftUpdate={handleShiftUpdate}
+                onAddShift={handleCellClick}
+                onEditShift={handleEditShift}
+                onDayHeaderClick={handleOpenDailyView}
+              />
+            )
+          ) : activeView === 'time-off' ? (
+            /* Time Off View */
+            <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+              <CalendarX className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Time Off Requests</h3>
+              <p className="text-gray-500 mb-6">No pending time off requests.</p>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                View All Requests
+              </Button>
+            </div>
+          ) : activeView === 'availability' ? (
+            /* Availability View */
+            <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+              <CalendarCheck className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Employee Availability</h3>
+              <p className="text-gray-500 mb-6">Manage when employees are available to work.</p>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                Set Availability
+              </Button>
+            </div>
+          ) : activeView === 'shift-pool' ? (
+            /* Shift Pool View */
+            <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+              <RefreshCw className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Shift Pool</h3>
+              <p className="text-gray-500 mb-6">Shifts that need coverage will appear here.</p>
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                View Open Shifts
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {/* Modals - wrapped in ClientOnly to prevent hydration issues */}
