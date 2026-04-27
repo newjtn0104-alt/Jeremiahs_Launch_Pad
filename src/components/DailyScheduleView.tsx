@@ -3,7 +3,7 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { X, Clock, GripVertical, Edit2, Trash2 } from "lucide-react";
+import { X, Clock, GripVertical, Edit2, Trash2, CalendarDays } from "lucide-react";
 import { format } from "date-fns";
 
 interface Employee {
@@ -353,9 +353,19 @@ export default function DailyScheduleView({
               </p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button 
+              variant="outline" 
+              onClick={onClose}
+              className="flex items-center gap-2"
+            >
+              <CalendarDays className="w-4 h-4" />
+              Back to Weekly View
+            </Button>
+            <Button variant="ghost" size="icon" onClick={onClose}>
+              <X className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
 

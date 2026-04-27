@@ -140,6 +140,15 @@ export default function ScheduleMaker({
     setDailyViewDate(null);
   };
 
+  // Handle shift updates - stays in daily view
+  const handleShiftUpdate = () => {
+    // Call parent's update handler
+    if (onShiftUpdate) onShiftUpdate();
+    // Refresh local data if not using props
+    if (!propShifts) fetchShifts();
+    // Note: We do NOT close the daily view - it stays open
+  };
+
   const handleShiftClick = (e: React.MouseEvent, shift: Shift) => {
     e.stopPropagation();
     if (isSelectMode) {
@@ -159,8 +168,7 @@ export default function ScheduleMaker({
       });
       const data = await res.json();
       if (data.success) {
-        if (onShiftUpdate) onShiftUpdate();
-        if (!propShifts) fetchShifts();
+        handleShiftUpdate(); // Use our handler that stays in daily view
       } else {
         alert(data.error || "Failed to delete shift");
       }
@@ -213,8 +221,7 @@ export default function ScheduleMaker({
       
       const data = await res.json();
       if (data.success) {
-        if (onShiftUpdate) onShiftUpdate();
-        if (!propShifts) fetchShifts();
+        handleShiftUpdate(); // Use our handler that stays in daily view
       } else {
         alert(data.error || "Failed to move shift");
       }
@@ -281,8 +288,7 @@ export default function ScheduleMaker({
     }
 
     if (successCount > 0) {
-      if (onShiftUpdate) onShiftUpdate();
-      if (!propShifts) fetchShifts();
+      handleShiftUpdate(); // Use our handler that stays in daily view
     }
 
     setSelectedShifts(new Set());
@@ -301,7 +307,7 @@ export default function ScheduleMaker({
         employees={displayEmployees}
         shifts={displayShifts}
         onClose={handleCloseDailyView}
-        onShiftUpdate={onShiftUpdate}
+        onShiftUpdate={handleShiftUpdate}
         onEditShift={onEditShift}
         onAddShift={onAddShift}
       />
